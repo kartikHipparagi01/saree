@@ -1,0 +1,369 @@
+{% extends 'base.html' %}
+
+{% block title %}Worker Portal - Saree Factory Portal{% endblock %}
+
+{% block page_header %}
+<div style="display: flex; align-items: center; gap: 16px;">
+    {% if worker.profile_image %}
+        <img src="/static/uploads/workers/{{ worker.profile_image }}" 
+             alt="{{ worker.name }}" 
+             style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-indigo); box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
+    {% else %}
+        <div style="width: 55px; height: 55px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-rose)); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
+            {{ worker.name[:2]|upper }}
+        </div>
+    {% endif %}
+    <div>
+        <h1 style="margin: 0;">Weaver Portal</h1>
+        <p style="color: var(--text-muted); font-size: 14px; margin: 4px 0 0 0;">Welcome back, <b>{{ worker.name }}</b>! Manage your daily output, track pending payouts, and retrieve billing receipts.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- 1. PERSONAL STATS GRID -->
+<div class="stats-grid">
+    <div class="stat-card indigo">
+        <div class="stat-header">
+            <span class="stat-title">Woven Today</span>
+            <div class="stat-icon"><i class="fa-solid fa-calendar-day"></i></div>
+        </div>
+        <div class="stat-value">{{ qty_today }} <span style="font-size: 14px; color: var(--text-muted); font-weight: normal;">Pcs</span></div>
+        <p style="font-size: 12px; color: var(--text-muted);">Outputs recorded today</p>
+    </div>
+    
+    <div class="stat-card amber">
+        <div class="stat-header">
+            <span class="stat-title">This Week's Earnings</span>
+            <div class="stat-icon"><i class="fa-solid fa-chart-simple"></i></div>
+        </div>
+        <div class="stat-value">{{ earnings_week | currency }}</div>
+        <p style="font-size: 12px; color: var(--text-muted);">Current week earnings</p>
+    </div>
+    
+    <div class="stat-card emerald">
+        <div class="stat-header">
+            <span class="stat-title">This Month's Earnings</span>
+            <div class="stat-icon"><i class="fa-solid fa-chart-line"></i></div>
+        </div>
+        <div class="stat-value">{{ earnings_month | currency }}</div>
+        <p style="font-size: 12px; color: var(--text-muted);">Current month earnings</p>
+    </div>
+    
+    <div class="stat-card rose" style="border-bottom: 4px solid var(--accent-amber);">
+        <div class="stat-header">
+            <span class="stat-title">Unsettled Balance</span>
+            <div class="stat-icon"><i class="fa-solid fa-wallet"></i></div>
+        </div>
+        <div class="stat-value" style="color: var(--accent-amber);">{{ unpaid_balance | currency }}</div>
+        <p style="font-size: 12px; color: var(--text-muted);">
+            {% if last_billed_date %}
+                Earned after {{ last_billed_date | format_date('%d-%b') }}
+            {% else %}
+                All-time unbilled earnings
+            {% endif %}</p>
+    </div>
+</div>
+
+<div class="widget-grid">
+    
+    <!-- 2. LEFT HAND WIDGET: LOG DAILY PRODUCTION -->
+    <div class="widget widget-col-4">
+        <h3 class="widget-title"><i class="fa-solid fa-calendar-plus" style="color: var(--accent-indigo); margin-right: 8px;"></i>Submit Daily Work</h3>
+        
+        <form id="production-form" action="{{ url_for('worker.dashboard') }}" method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+            
+            <div class="form-group">
+                <label for="date">Date Woven</label>
+                <input type="date" name="date" id="date" class="form-control" required style="font-size: 13px;">
+            </div>
+
+            <!-- DYNAMIC ROW CONTAINER -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 4px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0; color: var(--text-muted);">Sarees Woven</label>
+                    <button type="button" id="add-saree-row-btn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px;">
+                        <i class="fa-solid fa-plus"></i> Add Row
+                    </button>
+                </div>
+                
+                <div id="saree-rows-container" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Saree rows will be inserted here dynamically -->
+                </div>
+            </div>
+            
+            <!-- Dynamic Cost Calculator Summary -->
+            <div id="calc-summary-badge" style="display: none; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-top: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px;">
+                    <span>Your Net Payout:</span>
+                    <b id="est-earnings" style="color: var(--accent-emerald); font-size: 16px;">₹0.00</b>
+                </div>
+                <!-- Hide profit from workers as requested by standard role hierarchies -->
+                <span id="est-profit" style="display: none;"></span>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+                <i class="fa-solid fa-paper-plane"></i> Submit Daily Work
+            </button>
+            
+        </form>
+    </div>
+
+    <!-- ROW TEMPLATE -->
+    <template id="saree-row-template">
+        <div class="saree-production-row" style="display: flex; flex-direction: column; gap: 8px; background: var(--bg-secondary); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); position: relative;">
+            <!-- Row 1: Saree Selection Dropdown -->
+            <div style="width: 100%;">
+                <select name="saree_id[]" class="form-control saree-select-input" required style="font-size: 12px; padding: 4px 6px; height: 32px; width: 100%;">
+                    <option value="" disabled selected>-- Select Saree Woven --</option>
+                    {% for s in sarees %}
+                        <option value="{{ s.id }}" 
+                                data-payment="{{ s.worker_payment }}" 
+                                data-image="{% if s.saree_image %}{{ url_for('static', filename='uploads/sarees/' ~ s.saree_image) }}{% endif %}">
+                            {{ s.name }} — {{ s.color }} (Payout: ₹{{ s.worker_payment }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Row 2: Image Preview + Quantity + Delete Button -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;">
+                <!-- Left: Image Preview -->
+                <div class="saree-image-preview-container" style="width: 32px; height: 32px; border-radius: 6px; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-color); color: var(--text-muted); flex-shrink: 0; overflow: hidden;">
+                    <i class="fa-solid fa-image saree-image-placeholder" style="font-size: 12px;"></i>
+                    <img class="saree-image-preview" src="" style="width: 32px; height: 32px; object-fit: cover; display: none;">
+                </div>
+
+                <!-- Middle: Quantity Selector -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Qty:</span>
+                    <input type="number" name="quantity[]" class="form-control quantity-input" placeholder="1" min="1" value="1" required style="font-size: 12px; padding: 4px 6px; height: 28px; width: 55px; text-align: center;">
+                </div>
+
+                <!-- Right: Remove Button (Custom Styled, Non-overflowing) -->
+                <button type="button" class="remove-row-btn" style="background: rgba(239, 68, 68, 0.12); color: var(--accent-rose, #ef4444); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px; width: 28px; height: 28px; min-width: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; padding: 0;" title="Remove row">
+                    <i class="fa-solid fa-trash-can" style="font-size: 11px;"></i>
+                </button>
+            </div>
+        </div>
+    </template>
+    
+    <!-- 3. RIGHT HAND WIDGET: PERSONAL STATEMENT HISTORY -->
+    <div class="widget widget-col-8">
+        <h3 class="widget-title"><i class="fa-solid fa-receipt" style="color: var(--accent-indigo); margin-right: 8px;"></i>My Settled Invoices</h3>
+        
+        <div class="table-container">
+            <table class="custom-table" style="font-size: 13px;">
+                <thead>
+                    <tr>
+                        <th>Statement ID</th>
+                        <th>Period Dates</th>
+                        <th>Sarees</th>
+                        <th>Gross Payout</th>
+                        <th>Advances</th>
+                        <th>Net Payout</th>
+                        <th>Status</th>
+                        <th>Receipt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in personal_bills %}
+                        <tr>
+                            <td><b>SPM-{{ b.worker_id }}-{{ b.created_at | format_date('%m%y') }}-{{ b.id }}</b></td>
+                            <td>{{ b.start_date | format_date('%d/%m') }} to {{ b.end_date | format_date('%d/%m/%y') }}</td>
+                            <td><b>{{ b.total_production }}</b></td>
+                            <td style="color: var(--text-muted);">{{ b.total_earnings | currency }}</td>
+                            <td style="color: var(--accent-rose); font-weight: 500;">- {{ b.advance_deducted | currency }}</td>
+                            <td style="color: var(--accent-emerald); font-weight: 600;">{{ b.net_payout | currency }}</td>
+                            <td>
+                                <span class="badge {% if b.status == 'paid' %}paid{% else %}pending{% endif %}">
+                                    {{ b.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="/{{ b.pdf_path }}" 
+                                   class="btn btn-secondary btn-sm" 
+                                   target="_blank" 
+                                   style="padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; color: var(--accent-indigo);">
+                                    <i class="fa-solid fa-file-arrow-down"></i> PDF
+                                </a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                No billing invoices compiled for your profile yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+</div>
+
+<!-- 4. PERSONAL PRODUCTION WORK HISTORY -->
+<div class="widget widget-col-12" style="margin-top: 10px;">
+    <h3 class="widget-title"><i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-indigo); margin-right: 8px;"></i>My Historic Work Ledger</h3>
+    
+    <div class="table-container">
+        <table class="custom-table" style="font-size: 13.5px;">
+            <thead>
+                <tr>
+                    <th>Date Woven</th>
+                    <th>Saree Name</th>
+                    <th>Color</th>
+                    <th>Category</th>
+                    <th>Labor Rate</th>
+                    <th>Quantity Finished</th>
+                    <th>My Net Earnings</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in recent_productions %}
+                    <tr>
+                        <td>{{ p.date | format_date('%d-%b-%Y (%A)') }}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                {% if p.saree.saree_image %}
+                                    <img src="{{ url_for('static', filename='uploads/sarees/' ~ p.saree.saree_image) }}" alt="{{ p.saree.name }}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color); flex-shrink: 0;">
+                                {% else %}
+                                    <div style="width: 32px; height: 32px; border-radius: 4px; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-color); color: var(--text-muted); flex-shrink: 0;">
+                                        <i class="fa-solid fa-image" style="font-size: 11px;"></i>
+                                    </div>
+                                {% endif %}
+                                <b>{{ p.saree.name }}</b>
+                            </div>
+                        </td>
+                        <td>{{ p.saree.color }}</td>
+                        <td><span class="badge info">{{ p.saree.category }}</span></td>
+                        <td>{{ p.saree.worker_payment | currency }}</td>
+                        <td><b>{{ p.quantity }}</b></td>
+                        <td style="color: var(--accent-emerald); font-weight: 600;">{{ p.worker_earnings | currency }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i class="fa-solid fa-list-check" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+                            No work history logged in your database ledger yet. Submit daily work above!
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Set date default on daily submission to today
+        const dateInput = document.getElementById('date');
+        if (dateInput) {
+            dateInput.value = new Date().toISOString().substring(0, 10);
+        }
+        
+        // --- 1. DYNAMIC SAREE ROWS BUILDER ---
+        const container = document.getElementById('saree-rows-container');
+        const template = document.getElementById('saree-row-template');
+        const addBtn = document.getElementById('add-saree-row-btn');
+        const calcBadge = document.getElementById('calc-summary-badge');
+        const estEarnings = document.getElementById('est-earnings');
+        
+        function formatCurrency(value) {
+            return '₹' + parseFloat(value).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+        function recalculateEstimates() {
+            let totalEarnings = 0;
+            
+            const rows = container.querySelectorAll('.saree-production-row');
+            rows.forEach(row => {
+                const select = row.querySelector('.saree-select-input');
+                const qtyInput = row.querySelector('.quantity-input');
+                
+                const qty = parseInt(qtyInput.value) || 0;
+                const option = select.options[select.selectedIndex];
+                
+                if (option && option.value !== '') {
+                    const payment = parseFloat(option.getAttribute('data-payment')) || 0;
+                    totalEarnings += qty * payment;
+                }
+            });
+            
+            if (totalEarnings > 0) {
+                estEarnings.textContent = formatCurrency(totalEarnings);
+                calcBadge.style.display = 'block';
+            } else {
+                calcBadge.style.display = 'none';
+            }
+        }
+        
+        function addSareeRow() {
+            const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('.saree-production-row');
+            
+            const select = row.querySelector('.saree-select-input');
+            const qtyInput = row.querySelector('.quantity-input');
+            const removeBtn = row.querySelector('.remove-row-btn');
+            const placeholder = row.querySelector('.saree-image-placeholder');
+            const preview = row.querySelector('.saree-image-preview');
+            
+            // Image Preview on dropdown change
+            select.addEventListener('change', () => {
+                const option = select.options[select.selectedIndex];
+                const image = option ? option.getAttribute('data-image') : null;
+                
+                if (image && image.trim() !== '') {
+                    preview.src = image;
+                    preview.style.display = 'block';
+                    placeholder.style.display = 'none';
+                } else {
+                    preview.style.display = 'none';
+                    preview.src = '';
+                    placeholder.style.display = 'block';
+                }
+                
+                recalculateEstimates();
+            });
+            
+            qtyInput.addEventListener('input', recalculateEstimates);
+            qtyInput.addEventListener('change', recalculateEstimates);
+            
+            // Hover styles for custom styled trash button
+            removeBtn.addEventListener('mouseenter', () => {
+                removeBtn.style.background = 'rgba(239, 68, 68, 0.24)';
+            });
+            removeBtn.addEventListener('mouseleave', () => {
+                removeBtn.style.background = 'rgba(239, 68, 68, 0.12)';
+            });
+            
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+                recalculateEstimates();
+                // Ensure at least one empty row is present
+                if (container.querySelectorAll('.saree-production-row').length === 0) {
+                    addSareeRow();
+                }
+            });
+            
+            container.appendChild(row);
+            recalculateEstimates();
+        }
+        
+        // Initialize with one row
+        addSareeRow();
+        
+        if (addBtn) {
+            addBtn.addEventListener('click', addSareeRow);
+        }
+    });
+</script>
+{% endblock %}
