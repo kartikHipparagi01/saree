@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Saree Factory Production Management Portal{% endblock %}</title>
+    
+    <!-- Font Awesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS Variables & Modern Styling Rules -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.7">
+    
+    <style>
+        .avatar:hover .avatar-hover-overlay {
+            opacity: 1 !important;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body class="theme-iphone-dark">
+
+    <!-- Flash message containers for success, alert, warning toasts -->
+    <div class="alerts-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert-card {{ category }}">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            {% if category == 'success' %}
+                                <i class="fa-solid fa-circle-check" style="color: var(--accent-emerald);"></i>
+                            {% elif category == 'danger' %}
+                                <i class="fa-solid fa-circle-exclamation" style="color: var(--accent-rose);"></i>
+                            {% elif category == 'warning' %}
+                                <i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-amber);"></i>
+                            {% else %}
+                                <i class="fa-solid fa-circle-info" style="color: var(--accent-indigo);"></i>
+                            {% endif %}
+                            <span class="alert-message">{{ message }}</span>
+                        </div>
+                        <i class="fa-solid fa-xmark alert-close"></i>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Mobile Backdrop Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <div class="app-container">
+        
+        <!-- 1. LEFT SIDEBAR PANEL (iPhone Edition) -->
+        <aside class="sidebar" id="sidebar">
+            
+            <!-- Dynamic Notch Header -->
+            <div class="sidebar-notch">
+                <span class="notch-pill"><i class="fa-solid fa-mobile-screen-button"></i> iOS PRO</span>
+                <span style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px;">
+                    <span class="notch-status-dot"></span> ACTIVE
+                </span>
+            </div>
+
+            <div class="brand-section">
+                <div class="brand-logo">S</div>
+                <div>
+                    <div class="brand-name">SareeFactory</div>
+                    <div class="brand-sub">Production Enterprise</div>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul class="nav-list">
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.role == 'admin' %}
+                            <!-- Admin specific nav items -->
+                            <li class="nav-section-title">MAIN CONTROL</li>
+                            <li class="nav-item {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+                                <a href="{{ url_for('admin.dashboard') }}">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                    <span>Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="nav-item {% if request.endpoint == 'admin.list_sarees' %}active{% endif %}">
+                                <a href="{{ url_for('admin.list_sarees') }}">
+                                    <i class="fa-solid fa-layer-group"></i>
+                                    <span>Saree Catalog</span>
+                                </a>
+                            </li>
+                            <li class="nav-item {% if request.endpoint == 'admin.list_workers' %}active{% endif %}">
+                                <a href="{{ url_for('admin.list_workers') }}">
+                                    <i class="fa-solid fa-users"></i>
+                                    <span>Worker Registry</span>
+                                </a>
+                            </li>
+                            <li class="nav-item {% if request.endpoint == 'admin.list_production' %}active{% endif %}">
+                                <a href="{{ url_for('admin.list_production') }}">
+                                    <i class="fa-solid fa-industry"></i>
+                                    <span>Daily Production</span>
+                                </a>
+                            </li>
+
+                            <li class="nav-section-title" style="margin-top: 10px;">FINANCE & BILLING</li>
+                            <li class="nav-item {% if request.endpoint == 'admin.list_billing' %}active{% endif %}">
+                                <a href="{{ url_for('admin.list_billing') }}">
+                                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                                    <span>Billing & PDF</span>
+                                </a>
+                            </li>
+                            <li class="nav-item {% if request.endpoint in ['admin.list_customers'] %}active{% endif %}">
+                                <a href="{{ url_for('admin.list_customers') }}">
+                                    <i class="fa-solid fa-store"></i>
+                                    <span>Wholesale Buyers</span>
+                                </a>
+                            </li>
+                            <li class="nav-item {% if request.endpoint in ['admin.list_sales_invoices', 'admin.create_sales_invoice'] %}active{% endif %}">
+                                <a href="{{ url_for('admin.list_sales_invoices') }}">
+                                    <i class="fa-solid fa-receipt"></i>
+                                    <span>Sales Invoices</span>
+                                </a>
+                            </li>
+
+                            <li class="nav-section-title" style="margin-top: 10px;">SYSTEM AUDIT</li>
+                            <li class="nav-item {% if request.endpoint == 'admin.list_logs' %}active{% endif %}">
+                                <a href="{{ url_for('admin.list_logs') }}">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                    <span>Activity Logs</span>
+                                </a>
+                            </li>
+                        {% elif current_user.role == 'worker' %}
+                            <!-- Worker specific nav items -->
+                            <li class="nav-item {% if request.endpoint == 'worker.dashboard' %}active{% endif %}">
+                                <a href="{{ url_for('worker.dashboard') }}">
+                                    <i class="fa-solid fa-house-user"></i>
+                                    <span>My Dashboard</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                
+                <!-- 2. USER PROFILE PANEL (BOTTOM) -->
+                {% if current_user.is_authenticated %}
+                    <div class="user-bar">
+                        <div class="user-info">
+                            <div class="avatar" id="sidebar-avatar" style="position: relative; cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center;" title="Click to change profile picture">
+                                {% if current_user.role == 'worker' and current_user.worker_profile and current_user.worker_profile.profile_image %}
+                                    <img src="/static/uploads/workers/{{ current_user.worker_profile.profile_image }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                {% elif current_user.profile_image %}
+                                    <img src="/static/uploads/admins/{{ current_user.profile_image }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                {% else %}
+                                    {{ current_user.username[0].upper() }}
+                                {% endif %}
+                                <div class="avatar-hover-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s ease;">
+                                    <i class="fa-solid fa-camera" style="color: #fff; font-size: 13px;"></i>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; overflow: hidden; min-width: 0;">
+                                <span class="username-label" title="{{ current_user.username }}">
+                                    {% if current_user.role == 'admin' %}
+                                        Shankar Hipparagi
+                                    {% else %}
+                                        {{ current_user.username.capitalize() }}
+                                    {% endif %}
+                                </span>
+                                <span class="role-badge" style="margin-top: 3px;">{{ current_user.role }}</span>
+                            </div>
+                        </div>
+                        
+                        <ul class="nav-list" style="gap: 4px;">
+                            <li class="nav-item" style="margin: 0;">
+                                <a href="{{ url_for('auth.logout') }}" style="color: var(--accent-rose); background: transparent; padding: 6px 12px;">
+                                    <i class="fa-solid fa-right-from-bracket"></i>
+                                    <span>Sign Out</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                {% endif %}
+            </nav>
+        </aside>
+        
+        <!-- 3. RIGHT MAIN CONTENT SHEET -->
+        <main class="main-content">
+            
+            <header class="top-header">
+                <!-- Mobile sidebar toggler icon -->
+                <button class="mobile-sidebar-toggle" id="mobile-sidebar-toggle" type="button" aria-label="Open navigation menu" aria-controls="sidebar" aria-expanded="false">
+                    <i class="fa-solid fa-bars"></i>
+                    <span>Menu</span>
+                </button>
+                
+                <div class="page-title">
+                    {% block page_header %}{% endblock %}
+                </div>
+                
+                <div class="header-actions">
+                    <!-- Language Switcher (Kannada / English) -->
+                    <button class="lang-toggle-btn" id="lang-toggle" title="Switch Language / ಭಾಷೆ ಬದಲಾಯಿಸಿ" style="padding: 8px 16px; border-radius: 50px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-main); font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <i class="fa-solid fa-language" style="font-size: 15px; color: var(--accent-indigo);"></i> <span id="lang-label">ಕನ್ನಡ</span>
+                    </button>
+                    
+                    <!-- iPhone Multi-Theme Selector Dropdown -->
+                    <div class="theme-dropdown-wrapper">
+                        <button class="theme-dropdown-btn" id="theme-dropdown-btn">
+                            <span id="current-theme-icon">🌃</span>
+                            <span id="current-theme-label">iOS Midnight</span>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 10px; margin-left: 4px; opacity: 0.7;"></i>
+                        </button>
+                        
+                        <div class="theme-menu" id="theme-menu">
+                            <div class="theme-option" data-theme="theme-iphone-dark">
+                                <span>🌃 iPhone Midnight</span>
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div class="theme-option" data-theme="theme-iphone-light">
+                                <span>📱 iPhone iOS Light</span>
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div class="theme-option" data-theme="theme-iphone-titanium">
+                                <span>🪙 Titanium Pro</span>
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div class="theme-option" data-theme="theme-iphone-rose">
+                                <span>🌸 Rose Gold</span>
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+                            <div class="theme-option" data-theme="light-theme">
+                                <span>☀️ Classic Light</span>
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div class="theme-option" data-theme="dark-theme">
+                                <span>🌙 Classic Dark</span>
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Context blocks rendering main content -->
+            {% block content %}{% endblock %}
+            
+        </main>
+    </div>
+
+    <!-- Profile Photo Upload Modal -->
+    <div id="profile-photo-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div class="modal-content" style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 24px; border-radius: 24px; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-camera" style="margin-right: 8px; color: var(--accent-indigo);"></i>Update Profile Photo</h3>
+                <button type="button" id="close-profile-modal" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; font-weight: bold; line-height: 1;">&times;</button>
+            </div>
+            <form id="profile-photo-form" action="{{ url_for('auth.update_profile_photo') }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="form-group">
+                    <label for="profile_photo_input" style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px; display: block;">Select a new profile image (PNG, JPG, JPEG)</label>
+                    <input type="file" name="profile_image" id="profile_photo_input" class="form-control" accept="image/*" required style="width: 100%;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Upload Photo
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Core Global JS scripts integration -->
+    <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Force refresh page if restoring from browser history cache (Back/Forward button traversal)
+        window.addEventListener('pageshow', function (event) {
+            var historyTraversal = event.persisted || 
+                                   (typeof window.performance != 'undefined' && 
+                                    window.performance.navigation.type === 2);
+            if (historyTraversal) {
+                window.location.reload();
+            }
+        });
+
+        // Profile Photo Modal Triggers
+        const sidebarAvatar = document.getElementById('sidebar-avatar');
+        const profilePhotoModal = document.getElementById('profile-photo-modal');
+        const closeProfileModal = document.getElementById('close-profile-modal');
+        
+        if (sidebarAvatar && profilePhotoModal) {
+            sidebarAvatar.addEventListener('click', () => {
+                profilePhotoModal.style.display = 'flex';
+            });
+        }
+        if (closeProfileModal && profilePhotoModal) {
+            closeProfileModal.addEventListener('click', () => {
+                profilePhotoModal.style.display = 'none';
+            });
+            // Click outside to close
+            window.addEventListener('click', (e) => {
+                if (e.target === profilePhotoModal) {
+                    profilePhotoModal.style.display = 'none';
+                }
+            });
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
