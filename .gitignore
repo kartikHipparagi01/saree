@@ -1,0 +1,18 @@
+# Private configuration and Python environments
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Local database and runtime logs
+*.db
+*.sqlite
+*.sqlite3
+log.txt
+
+# User-generated files (keep the folders, not their contents)
+app/static/uploads/**
+!app/static/uploads/**/.gitkeep
+app/static/invoices/**
+!app/static/invoices/**/.gitkeep
