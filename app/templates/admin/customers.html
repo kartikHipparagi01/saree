@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Wholesale Customers - Saree Factory Portal{% endblock %}
+
+{% block page_header %}
+<h1>Wholesale Customers</h1>
+<p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Manage profiles and tax identities (GSTIN) for wholesale buyers and outside parties</p>
+{% endblock %}
+
+{% block content %}
+
+<!-- 1. ACTIONS HEADER BAR -->
+<div class="table-filters" style="justify-content: space-between;">
+    <div style="position: relative; max-width: 320px; width: 100%;">
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+        <input type="text" id="customer-search" class="form-control" placeholder="Search customer directory..." style="padding-left: 40px; width: 100%;">
+    </div>
+    
+    <button class="btn btn-primary" onclick="openDialog('add-customer-dialog')">
+        <i class="fa-solid fa-plus"></i> Register New Customer
+    </button>
+</div>
+
+<!-- 2. MAIN CUSTOMER DIRECTORY -->
+<div class="widget widget-col-12" style="padding: 0; overflow: hidden;">
+    <div class="table-container">
+        <table class="custom-table" id="customers-table">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>GSTIN</th>
+                    <th>Phone</th>
+                    <th>Place of Supply (Address)</th>
+                    <th>State</th>
+                    <th>State Code</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                    <tr class="customer-row">
+                        <td><b>{{ customer.name }}</b></td>
+                        <td>
+                            {% if customer.gstin %}
+                                <code style="font-family: monospace; font-weight: 700; color: var(--accent-indigo); background: var(--bg-primary); padding: 4px 8px; border-radius: 4px; font-size: 12px;">{{ customer.gstin }}</code>
+                            {% else %}
+                                <span class="badge pending" style="font-size: 11px;">Unregistered (No GST)</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ customer.phone or 'N/A' }}</td>
+                        <td>{{ customer.address or 'N/A' }}</td>
+                        <td>{{ customer.state or 'Karnataka' }}</td>
+                        <td><span class="badge info" style="font-family: monospace; font-size: 11px;">{{ customer.state_code or '29' }}</span></td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary btn-sm edit-customer-btn" 
+                                        data-id="{{ customer.id }}"
+                                        data-name="{{ customer.name }}"
+                                        data-phone="{{ customer.phone or '' }}"
+                                        data-address="{{ customer.address or '' }}"
+                                        data-gstin="{{ customer.gstin or '' }}"
+                                        data-state="{{ customer.state or 'Karnataka' }}"
+                                        data-state-code="{{ customer.state_code or '29' }}"
+                                        title="Edit profile">
+                                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                                </button>
+                                <a href="{{ url_for('admin.delete_customer', id=customer.id) }}" 
+                                   class="btn btn-rose btn-sm"
+                                   onclick="return confirm('Are you sure you want to delete customer \'{{ customer.name }}\'? This will permanently delete all associated invoices!');"
+                                   title="Remove profile">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i class="fa-solid fa-users-slash" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+                            No wholesale customers registered yet. Add one above!
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 3. REGISTER CUSTOMER DIALOG BOX -->
+<div class="dialog-overlay" id="add-customer-dialog">
+    <div class="dialog-box" style="max-width: 550px;">
+        <i class="fa-solid fa-xmark dialog-close" onclick="closeDialog('add-customer-dialog')"></i>
+        <h3 class="widget-title">Register Wholesale Customer</h3>
+        
+        <form action="{{ url_for('admin.add_customer') }}" method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+                <label for="add-name">Party Name (Sold To)</label>
+                <input type="text" name="name" id="add-name" class="form-control" placeholder="e.g. Shri Neelakanteshwar Sarees" required>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label for="add-gstin">Party's GSTIN</label>
+                    <input type="text" name="gstin" id="add-gstin" class="form-control" placeholder="e.g. 29AIRPH3656G1ZU">
+                </div>
+                
+                <div class="form-group">
+                    <label for="add-phone">Phone Number</label>
+                    <input type="tel" name="phone" id="add-phone" class="form-control" placeholder="Contact number">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label for="add-state">State</label>
+                    <input type="text" name="state" id="add-state" class="form-control" value="Karnataka" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="add-state-code">State Code</label>
+                    <input type="text" name="state_code" id="add-state-code" class="form-control" value="29" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="add-address">Place of Supply (Billing Address)</label>
+                <textarea name="address" id="add-address" class="form-control" placeholder="Enter full address" rows="2"></textarea>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeDialog('add-customer-dialog')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Register Customer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 4. EDIT CUSTOMER DIALOG BOX -->
+<div class="dialog-overlay" id="edit-customer-dialog">
+    <div class="dialog-box" style="max-width: 550px;">
+        <i class="fa-solid fa-xmark dialog-close" onclick="closeDialog('edit-customer-dialog')"></i>
+        <h3 class="widget-title">Edit Customer Profile</h3>
+        
+        <form id="edit-customer-form" action="" method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+                <label for="edit-name">Party Name (Sold To)</label>
+                <input type="text" name="name" id="edit-name" class="form-control" required>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label for="edit-gstin">Party's GSTIN</label>
+                    <input type="text" name="gstin" id="edit-gstin" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-phone">Phone Number</label>
+                    <input type="tel" name="phone" id="edit-phone" class="form-control">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label for="edit-state">State</label>
+                    <input type="text" name="state" id="edit-state" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-state-code">State Code</label>
+                    <input type="text" name="state_code" id="edit-state-code" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-address">Place of Supply (Billing Address)</label>
+                <textarea name="address" id="edit-address" class="form-control" rows="2"></textarea>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeDialog('edit-customer-dialog')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Profile</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- 1. LOCAL SEARCH FILTER ---
+        const searchInput = document.getElementById('customer-search');
+        const rows = document.querySelectorAll('.customer-row');
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.toLowerCase().trim();
+                
+                rows.forEach(row => {
+                    const textContent = row.textContent.toLowerCase();
+                    if (textContent.includes(query)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // --- 2. EDIT MODAL BINDINGS ---
+        const editButtons = document.querySelectorAll('.edit-customer-btn');
+        const editForm = document.getElementById('edit-customer-form');
+        const editName = document.getElementById('edit-name');
+        const editPhone = document.getElementById('edit-phone');
+        const editAddress = document.getElementById('edit-address');
+        const editGstin = document.getElementById('edit-gstin');
+        const editState = document.getElementById('edit-state');
+        const editStateCode = document.getElementById('edit-state-code');
+        
+        editButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                const phone = btn.getAttribute('data-phone');
+                const address = btn.getAttribute('data-address');
+                const gstin = btn.getAttribute('data-gstin');
+                const state = btn.getAttribute('data-state');
+                const stateCode = btn.getAttribute('data-state-code');
+                
+                // Set form action dynamically
+                editForm.setAttribute('action', `/admin/customers/edit/${id}`);
+                
+                // Populate inputs
+                editName.value = name;
+                editPhone.value = phone || '';
+                editAddress.value = address || '';
+                editGstin.value = gstin || '';
+                editState.value = state || 'Karnataka';
+                editStateCode.value = stateCode || '29';
+                
+                // Open dialog
+                openDialog('edit-customer-dialog');
+            });
+        });
+    });
+</script>
+{% endblock %}

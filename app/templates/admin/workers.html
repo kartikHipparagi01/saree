@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+
+{% block title %}Worker Registry - Saree Factory Portal{% endblock %}
+
+{% block page_header %}
+<h1>Worker Registry</h1>
+<p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Register weavers and manage their self-service web portal login accounts</p>
+{% endblock %}
+
+{% block content %}
+
+<!-- 1. ACTIONS HEADER BAR -->
+<div class="table-filters" style="justify-content: space-between;">
+    <div style="position: relative; max-width: 320px; width: 100%;">
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+        <input type="text" id="worker-search" class="form-control" placeholder="Search workers..." style="padding-left: 40px; width: 100%;">
+    </div>
+    
+    <button class="btn btn-primary" onclick="openDialog('add-worker-dialog')">
+        <i class="fa-solid fa-user-plus"></i> Register New Worker
+    </button>
+</div>
+
+<!-- 2. MAIN REGISTER TABLE -->
+<div class="widget widget-col-12" style="padding: 0; overflow: hidden;">
+    <div class="table-container">
+        <table class="custom-table" id="workers-table">
+            <thead>
+                <tr>
+                    <th>Weaver Name</th>
+                    <th>Phone</th>
+                    <th>Address</th>
+                    <th>Joining Date</th>
+                    <th>Portal Login Account</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for worker in workers %}
+                    <tr class="worker-row">
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                {% if worker.profile_image %}
+                                    <img src="/static/uploads/workers/{{ worker.profile_image }}" 
+                                         alt="{{ worker.name }}" 
+                                         style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-indigo); box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+                                {% else %}
+                                    <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-rose)); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+                                        {{ worker.name[:2]|upper }}
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <b style="font-size: 14px; color: var(--text-primary);">{{ worker.name }}</b>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ worker.phone }}</td>
+                        <td>{{ worker.address or 'N/A' }}</td>
+                        <td>{{ worker.joining_date | format_date('%d-%b-%Y') }}</td>
+                        <td>
+                            {% if worker.user %}
+                                <span class="badge success" style="font-family: monospace; font-size: 11px;">
+                                    <i class="fa-solid fa-shield" style="margin-right: 4px;"></i>{{ worker.user.username }}
+                                </span>
+                            {% else %}
+                                <span class="badge pending" style="font-size: 11px;">No Account</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if worker.status == 'active' %}active{% else %}inactive{% endif %}">
+                                {{ worker.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary btn-sm edit-worker-btn" 
+                                        data-id="{{ worker.id }}"
+                                        data-name="{{ worker.name }}"
+                                        data-phone="{{ worker.phone }}"
+                                        data-address="{{ worker.address }}"
+                                        data-status="{{ worker.status }}"
+                                        data-joining="{{ worker.joining_date | format_date('%Y-%m-%d') }}"
+                                        data-has-user="{% if worker.user %}true{% else %}false{% endif %}"
+                                        title="Edit profile">
+                                    <i class="fa-solid fa-user-pen"></i> Edit
+                                </button>
+                                <a href="{{ url_for('admin.delete_worker', id=worker.id) }}" 
+                                   class="btn btn-rose btn-sm"
+                                   onclick="return confirm('Are you sure you want to delete worker \'{{ worker.name }}\'? This will permanently erase their entire history!');"
+                                   title="Remove profile">
+                                    <i class="fa-solid fa-user-slash"></i> Delete
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i class="fa-solid fa-users-slash" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+                            No workers registered yet. Add one above!
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 3. REGISTER WORKER DIALOG BOX -->
+<div class="dialog-overlay" id="add-worker-dialog">
+    <div class="dialog-box" style="max-width: 550px;">
+        <i class="fa-solid fa-xmark dialog-close" onclick="closeDialog('add-worker-dialog')"></i>
+        <h3 class="widget-title">Register New Worker</h3>
+        
+        <form action="{{ url_for('admin.add_worker') }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+                <label for="add-name">Full Name</label>
+                <input type="text" name="name" id="add-name" class="form-control" placeholder="e.g. Ramesh Kumar" required>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label for="add-phone">Phone Number</label>
+                    <input type="tel" name="phone" id="add-phone" class="form-control" placeholder="10-digit mobile" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="add-joining">Joining Date</label>
+                    <input type="date" name="joining_date" id="add-joining" class="form-control" value="">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="add-address">Home Address</label>
+                <textarea name="address" id="add-address" class="form-control" placeholder="Enter residential address" rows="2"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="add-profile-image">Profile Photo</label>
+                <input type="file" name="profile_image" id="add-profile-image" class="form-control" accept="image/*">
+            </div>
+            
+            <!-- PORTAL CREATION SUBFORM TOGGLER -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 4px;">
+                <label style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 14px;">
+                    <input type="checkbox" id="add-create-account" name="create_account" style="accent-color: var(--accent-indigo); width: 16px; height: 16px;">
+                    <span>Configure Web Portal Login Account</span>
+                </label>
+                
+                <div id="portal-fields" style="display: none; flex-direction: column; gap: 16px; margin-top: 16px; background: rgba(0,0,0,0.1); padding: 16px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <div class="form-group" style="margin: 0;">
+                        <label for="add-username">Account Username</label>
+                        <input type="text" name="username" id="add-username" class="form-control" placeholder="e.g. ramesh">
+                    </div>
+                    
+                    <div class="form-group" style="margin: 0;">
+                        <label for="add-password">Login Password</label>
+                        <input type="password" name="password" id="add-password" class="form-control" placeholder="At least 6 characters">
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeDialog('add-worker-dialog')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Register Worker</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 4. EDIT WORKER DIALOG BOX (Unified Modal) -->
+<div class="dialog-overlay" id="edit-worker-dialog">
+    <div class="dialog-box" style="max-width: 550px;">
+        <i class="fa-solid fa-xmark dialog-close" onclick="closeDialog('edit-worker-dialog')"></i>
+        <h3 class="widget-title">Edit Worker Profile</h3>
+        
+        <form id="edit-worker-form" action="" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+                <label for="edit-name">Full Name</label>
+                <input type="text" name="name" id="edit-name" class="form-control" required>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label for="edit-phone">Phone Number</label>
+                    <input type="tel" name="phone" id="edit-phone" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-joining">Joining Date</label>
+                    <input type="date" name="joining_date" id="edit-joining" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-address">Home Address</label>
+                <textarea name="address" id="edit-address" class="form-control" rows="2"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-profile-image">Update Profile Photo</label>
+                <input type="file" name="profile_image" id="edit-profile-image" class="form-control" accept="image/*">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-status">Employment Status</label>
+                <select name="status" id="edit-status" class="form-control" required>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            
+            <!-- PORTAL RESET PASSWORD CONTROL -->
+            <div id="reset-password-section" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 4px; display: none;">
+                <label style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 14px; color: var(--accent-amber);">
+                    <input type="checkbox" id="edit-reset-pwd-toggle" name="reset_password" style="accent-color: var(--accent-amber); width: 16px; height: 16px;">
+                    <span>Change/Reset Portal Password</span>
+                </label>
+                
+                <div id="pwd-reset-fields" style="display: none; flex-direction: column; gap: 12px; margin-top: 16px; background: rgba(0,0,0,0.1); padding: 16px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <div class="form-group" style="margin: 0;">
+                        <label for="edit-new-password">New Login Password</label>
+                        <input type="password" name="new_password" id="edit-new-password" class="form-control" placeholder="Enter new strong password">
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeDialog('edit-worker-dialog')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Profile</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Set joining date default on register to today
+        const addJoining = document.getElementById('add-joining');
+        if (addJoining && !addJoining.value) {
+            addJoining.value = new Date().toISOString().substring(0, 10);
+        }
+
+        // --- 1. LOCAL SEARCH FILTER ---
+        const searchInput = document.getElementById('worker-search');
+        const rows = document.querySelectorAll('.worker-row');
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.toLowerCase().trim();
+                
+                rows.forEach(row => {
+                    const name = row.querySelector('td:first-child').textContent.toLowerCase();
+                    const phone = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                    
+                    if (name.includes(query) || phone.includes(query)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // --- 2. DYNAMIC INPUT REVEAL (Register Portal checkbox) ---
+        const createAccountCheckbox = document.getElementById('add-create-account');
+        const portalFieldsDiv = document.getElementById('portal-fields');
+        const addUsername = document.getElementById('add-username');
+        const addPassword = document.getElementById('add-password');
+        
+        if (createAccountCheckbox && portalFieldsDiv) {
+            createAccountCheckbox.addEventListener('change', () => {
+                const isChecked = createAccountCheckbox.checked;
+                portalFieldsDiv.style.display = isChecked ? 'flex' : 'none';
+                addUsername.required = isChecked;
+                addPassword.required = isChecked;
+            });
+        }
+        
+        // --- 3. DYNAMIC INPUT REVEAL (Edit Reset Password checkbox) ---
+        const resetCheckbox = document.getElementById('edit-reset-pwd-toggle');
+        const pwdFieldsDiv = document.getElementById('pwd-reset-fields');
+        const newPasswordInput = document.getElementById('edit-new-password');
+        
+        if (resetCheckbox && pwdFieldsDiv) {
+            resetCheckbox.addEventListener('change', () => {
+                const isChecked = resetCheckbox.checked;
+                pwdFieldsDiv.style.display = isChecked ? 'flex' : 'none';
+                newPasswordInput.required = isChecked;
+            });
+        }
+        
+        // --- 4. EDIT MODAL BINDINGS ---
+        const editButtons = document.querySelectorAll('.edit-worker-btn');
+        const editForm = document.getElementById('edit-worker-form');
+        const editName = document.getElementById('edit-name');
+        const editPhone = document.getElementById('edit-phone');
+        const editAddress = document.getElementById('edit-address');
+        const editStatus = document.getElementById('edit-status');
+        const editJoining = document.getElementById('edit-joining');
+        
+        const resetPasswordSection = document.getElementById('reset-password-section');
+        
+        editButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                const phone = btn.getAttribute('data-phone');
+                const address = btn.getAttribute('data-address');
+                const status = btn.getAttribute('data-status');
+                const joining = btn.getAttribute('data-joining');
+                const hasUser = btn.getAttribute('data-has-user') === 'true';
+                
+                // Set form action dynamically
+                editForm.setAttribute('action', `/admin/workers/edit/${id}`);
+                
+                // Populate inputs
+                editName.value = name;
+                editPhone.value = phone;
+                editAddress.value = address || '';
+                editStatus.value = status;
+                editJoining.value = joining;
+                
+                // Reset password fields settings
+                resetCheckbox.checked = false;
+                pwdFieldsDiv.style.display = 'none';
+                newPasswordInput.required = false;
+                newPasswordInput.value = '';
+                
+                if (hasUser) {
+                    resetPasswordSection.style.display = 'block';
+                } else {
+                    resetPasswordSection.style.display = 'none';
+                }
+                
+                // Open dialog
+                openDialog('edit-worker-dialog');
+            });
+        });
+    });
+</script>
+{% endblock %}

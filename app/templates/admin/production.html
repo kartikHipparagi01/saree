@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+
+{% block title %}Daily Production - Saree Factory Portal{% endblock %}
+
+{% block page_header %}
+<h1>Production Ledger</h1>
+<p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Record daily weaver outputs and monitor labor payouts, unit sales, and company profit splits</p>
+{% endblock %}
+
+{% block content %}
+
+<div class="widget-grid">
+    
+    <!-- 1. LEFT SIDEBAR COLUMN: RECORD PRODUCTION FORM -->
+    <div class="widget widget-col-4">
+        <h3 class="widget-title"><i class="fa-solid fa-square-plus" style="color: var(--accent-indigo); margin-right: 8px;"></i>Log Production Run</h3>
+        
+        <form id="production-form" action="{{ url_for('admin.add_production') }}" method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+            
+            <div class="form-group">
+                <label for="worker_id">Select Weaver</label>
+                <select name="worker_id" id="worker_id" class="form-control" required style="font-size: 13.5px; width: 100%;">
+                    <option value="" disabled selected>-- Select Weaver --</option>
+                    {% for w in workers %}
+                        <option value="{{ w.id }}">{{ w.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="date">Date Woven</label>
+                <input type="date" name="date" id="date" class="form-control" required style="font-size: 13.5px; width: 100%;">
+            </div>
+
+            <!-- DYNAMIC ROW CONTAINER -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 4px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0; color: var(--text-muted);">Sarees Logged</label>
+                    <button type="button" id="add-saree-row-btn" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px;">
+                        <i class="fa-solid fa-plus"></i> Add Row
+                    </button>
+                </div>
+                
+                <div id="saree-rows-container" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Saree rows will be inserted here dynamically -->
+                </div>
+            </div>
+            
+            <!-- 2. REAL-TIME JS CALCULATOR LIVE SUMMARY BADGE -->
+            <div id="calc-summary-badge" style="display: none; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-top: 4px;">
+                <h4 style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Live Cost Estimates:</h4>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Weaver Net Payout:</span>
+                        <b id="est-earnings" style="color: var(--accent-amber);">₹0.00</b>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: 4px;">
+                        <span>Estimated Net Profit:</span>
+                        <b id="est-profit" style="color: var(--accent-emerald);">₹0.00</b>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+                <i class="fa-solid fa-circle-check"></i> Submit Production Record
+            </button>
+            
+        </form>
+    </div>
+
+    <!-- ROW TEMPLATE -->
+    <template id="saree-row-template">
+        <div class="saree-production-row" style="display: flex; flex-direction: column; gap: 8px; background: var(--bg-secondary); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); position: relative;">
+            <!-- Row 1: Saree Selection Dropdown -->
+            <div style="width: 100%;">
+                <select name="saree_id[]" class="form-control saree-select-input" required style="font-size: 12px; padding: 4px 6px; height: 32px; width: 100%;">
+                    <option value="" disabled selected>-- Select Saree Type --</option>
+                    {% for s in sarees %}
+                        <option value="{{ s.id }}" 
+                                data-payment="{{ s.worker_payment }}" 
+                                data-cost="{{ s.cost_price }}" 
+                                data-selling="{{ s.selling_price }}"
+                                data-image="{% if s.saree_image %}{{ url_for('static', filename='uploads/sarees/' ~ s.saree_image) }}{% endif %}">
+                            {{ s.name }} — {{ s.color }} (Labor: ₹{{ s.worker_payment }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Row 2: Image Preview + Quantity + Delete Button -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;">
+                <!-- Left: Image Preview -->
+                <div class="saree-image-preview-container" style="width: 32px; height: 32px; border-radius: 6px; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-color); color: var(--text-muted); flex-shrink: 0; overflow: hidden;">
+                    <i class="fa-solid fa-image saree-image-placeholder" style="font-size: 12px;"></i>
+                    <img class="saree-image-preview" src="" style="width: 32px; height: 32px; object-fit: cover; display: none;">
+                </div>
+
+                <!-- Middle: Quantity Selector -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Qty:</span>
+                    <input type="number" name="quantity[]" class="form-control quantity-input" placeholder="1" min="1" value="1" required style="font-size: 12px; padding: 4px 6px; height: 28px; width: 55px; text-align: center;">
+                </div>
+
+                <!-- Right: Remove Button (Custom Styled, Non-overflowing) -->
+                <button type="button" class="remove-row-btn" style="background: rgba(239, 68, 68, 0.12); color: var(--accent-rose, #ef4444); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px; width: 28px; height: 28px; min-width: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; padding: 0;" title="Remove row">
+                    <i class="fa-solid fa-trash-can" style="font-size: 11px;"></i>
+                </button>
+            </div>
+        </div>
+    </template>
+    
+    <!-- 3. RIGHT SIDEBAR COLUMN: LEDGER HISTORY LIST -->
+    <div class="widget widget-col-8">
+        <div class="widget-header" style="flex-direction: column; align-items: flex-start; gap: 12px;">
+            <span class="widget-title"><i class="fa-solid fa-list-check" style="color: var(--accent-indigo); margin-right: 8px;"></i>Production Ledger Log</span>
+            
+            <!-- In-ledger quick table filters -->
+            <div class="table-filters" style="width: 100%; padding: 12px; font-size: 13px;">
+                <div style="position: relative; flex: 1; min-width: 180px;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px;"></i>
+                    <input type="text" id="ledger-search" class="form-control" placeholder="Search weaver or product..." style="padding-left: 32px; padding-top: 8px; padding-bottom: 8px; font-size: 13px; width: 100%;">
+                </div>
+                
+                <div style="min-width: 140px;">
+                    <input type="date" id="ledger-date-filter" class="form-control" style="padding-top: 8px; padding-bottom: 8px; font-size: 13px; width: 100%;" title="Filter by date">
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <table class="custom-table" id="ledger-table" style="font-size: 13px;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Weaver</th>
+                        <th>Saree Product</th>
+                        <th>Color</th>
+                        <th>Qty</th>
+                        <th>Weaver Earnings</th>
+                        <th>Net Profit</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prod in productions %}
+                        <tr class="ledger-row" data-date="{{ prod.date | format_date('%Y-%m-%d') }}">
+                            <td>{{ prod.date | format_date('%d-%b-%Y (%A)') }}</td>
+                            <td><b>{{ prod.worker.name }}</b></td>
+                            <td>{{ prod.saree.name }}</td>
+                            <td>{{ prod.saree.color }}</td>
+                            <td>{{ prod.quantity }}</td>
+                            <td style="color: var(--accent-amber); font-weight: 500;">{{ prod.worker_earnings | currency }}</td>
+                            <td style="color: {% if prod.company_profit >= 0 %}var(--accent-emerald){% else %}var(--accent-rose){% endif %}; font-weight: 600;">
+                                {{ prod.company_profit | currency }}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin.delete_production', id=prod.id) }}" 
+                                   class="btn btn-rose btn-sm"
+                                   onclick="return confirm('Confirm deletion of this production entry? all related payouts calculations will be reverted!');"
+                                   style="padding: 4px 8px; font-size: 11px;"
+                                   title="Delete log">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                <i class="fa-solid fa-inbox" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+                                No daily production outputs recorded. Log one on the left!
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Set date default to today
+        const dateInput = document.getElementById('date');
+        if (dateInput) {
+            dateInput.value = new Date().toISOString().substring(0, 10);
+        }
+        
+        // --- 1. DYNAMIC SAREE ROWS BUILDER ---
+        const container = document.getElementById('saree-rows-container');
+        const template = document.getElementById('saree-row-template');
+        const addBtn = document.getElementById('add-saree-row-btn');
+        const calcBadge = document.getElementById('calc-summary-badge');
+        const estEarnings = document.getElementById('est-earnings');
+        const estProfit = document.getElementById('est-profit');
+        
+        function formatCurrency(value) {
+            return '₹' + parseFloat(value).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+        function recalculateEstimates() {
+            let totalEarnings = 0;
+            let totalProfit = 0;
+            
+            const rows = container.querySelectorAll('.saree-production-row');
+            rows.forEach(row => {
+                const select = row.querySelector('.saree-select-input');
+                const qtyInput = row.querySelector('.quantity-input');
+                
+                const qty = parseInt(qtyInput.value) || 0;
+                const option = select.options[select.selectedIndex];
+                
+                if (option && option.value !== '') {
+                    const payment = parseFloat(option.getAttribute('data-payment')) || 0;
+                    const cost = parseFloat(option.getAttribute('data-cost')) || 0;
+                    const selling = parseFloat(option.getAttribute('data-selling')) || 0;
+                    
+                    totalEarnings += qty * payment;
+                    totalProfit += qty * (selling - payment - cost);
+                }
+            });
+            
+            if (totalEarnings > 0 || totalProfit !== 0) {
+                estEarnings.textContent = formatCurrency(totalEarnings);
+                estProfit.textContent = formatCurrency(totalProfit);
+                calcBadge.style.display = 'block';
+            } else {
+                calcBadge.style.display = 'none';
+            }
+        }
+        
+        function addSareeRow() {
+            const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('.saree-production-row');
+            
+            const select = row.querySelector('.saree-select-input');
+            const qtyInput = row.querySelector('.quantity-input');
+            const removeBtn = row.querySelector('.remove-row-btn');
+            const placeholder = row.querySelector('.saree-image-placeholder');
+            const preview = row.querySelector('.saree-image-preview');
+            
+            // Image Preview on dropdown change
+            select.addEventListener('change', () => {
+                const option = select.options[select.selectedIndex];
+                const image = option ? option.getAttribute('data-image') : null;
+                
+                if (image && image.trim() !== '') {
+                    preview.src = image;
+                    preview.style.display = 'block';
+                    placeholder.style.display = 'none';
+                } else {
+                    preview.style.display = 'none';
+                    preview.src = '';
+                    placeholder.style.display = 'block';
+                }
+                
+                recalculateEstimates();
+            });
+            
+            qtyInput.addEventListener('input', recalculateEstimates);
+            qtyInput.addEventListener('change', recalculateEstimates);
+            
+            // Hover styles for custom styled trash button
+            removeBtn.addEventListener('mouseenter', () => {
+                removeBtn.style.background = 'rgba(239, 68, 68, 0.24)';
+            });
+            removeBtn.addEventListener('mouseleave', () => {
+                removeBtn.style.background = 'rgba(239, 68, 68, 0.12)';
+            });
+            
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+                recalculateEstimates();
+                // Ensure at least one empty row is present
+                if (container.querySelectorAll('.saree-production-row').length === 0) {
+                    addSareeRow();
+                }
+            });
+            
+            container.appendChild(row);
+            recalculateEstimates();
+        }
+        
+        // Initialize with one row
+        addSareeRow();
+        
+        if (addBtn) {
+            addBtn.addEventListener('click', addSareeRow);
+        }
+        
+        // --- 2. LOCAL LEDGER FILTERS ENGINE ---
+        const searchInput = document.getElementById('ledger-search');
+        const dateFilterInput = document.getElementById('ledger-date-filter');
+        const ledgerRows = document.querySelectorAll('.ledger-row');
+        
+        function filterLedgerTable() {
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const selectedDate = dateFilterInput ? dateFilterInput.value : '';
+            
+            ledgerRows.forEach(row => {
+                const textCell = row.querySelector('td:nth-child(2)').textContent.toLowerCase() + ' ' + row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+                const rowDate = row.getAttribute('data-date');
+                
+                const matchesText = textCell.includes(query);
+                const matchesDate = !selectedDate || rowDate === selectedDate;
+                
+                if (matchesText && matchesDate) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        if (searchInput) searchInput.addEventListener('input', filterLedgerTable);
+        if (dateFilterInput) dateFilterInput.addEventListener('change', filterLedgerTable);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,500 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Control Center - Saree Factory Portal{% endblock %}
+
+{% block page_header %}
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 12px;">
+    <div>
+        <h1 style="font-size: 24px; margin: 0; display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-sliders" style="color: var(--accent-indigo); font-size: 22px;"></i> Admin Control Center
+        </h1>
+        <p style="color: var(--text-muted); font-size: 13px; margin-top: 2px;">Real-time production monitoring, financial analytics & bill configuration</p>
+    </div>
+    
+    <!-- Quick Action Launch Pills -->
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <a href="{{ url_for('admin.list_sarees') }}" class="btn btn-secondary btn-sm" style="border-radius: 50px;">
+            <i class="fa-solid fa-plus" style="color: var(--accent-indigo);"></i> Add Saree
+        </a>
+        <a href="{{ url_for('admin.list_production') }}" class="btn btn-secondary btn-sm" style="border-radius: 50px;">
+            <i class="fa-solid fa-industry" style="color: var(--accent-emerald);"></i> Log Output
+        </a>
+        <a href="{{ url_for('admin.create_sales_invoice') }}" class="btn btn-primary btn-sm" style="border-radius: 50px;">
+            <i class="fa-solid fa-file-invoice" style="color: #fff;"></i> New Invoice
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- 0. OFFICIAL TAX INVOICE BILL SETUP BANNER & SETTINGS -->
+<div class="widget" style="margin-bottom: 24px; padding: 20px; border-radius: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #7a1f1f, #b82e2e); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 12px rgba(122, 31, 31, 0.3);">
+                <i class="fa-solid fa-receipt"></i>
+            </div>
+            <div>
+                <h3 style="font-size: 17px; font-weight: 800; color: var(--text-main); margin: 0;">Official Tax Invoice Bill Setup</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Shri Neelakanteshwar Sarees Banhatti • Official Header & Print Settings</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary btn-sm" onclick="openDialog('bill-setup-modal')" style="border-radius: 50px; font-weight: 700;">
+                <i class="fa-solid fa-sliders" style="color: var(--accent-indigo);"></i> Bill Setup Settings
+            </button>
+            <a href="{{ url_for('admin.list_sales_invoices') }}" class="btn btn-primary btn-sm" style="border-radius: 50px;">
+                <i class="fa-solid fa-file-invoice"></i> View Invoices
+            </a>
+        </div>
+    </div>
+
+    <!-- Bill Header Mini Preview Card -->
+    <div style="background: #fffdf7; border: 2px double #7a1f1f; border-radius: 16px; padding: 16px 20px; color: #111; font-family: 'Georgia', serif; box-shadow: 0 4px 14px rgba(0,0,0,0.06);">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; border-bottom: 1px solid #7a1f1f; padding-bottom: 4px; margin-bottom: 8px;">
+            <span>GSTIN: 29AIRPH3656G1ZU</span>
+            <span style="text-align: center; color: #7a1f1f;"><u>Subject to Banhatti Jurisdiction</u></span>
+            <span>Cell: 9632371493</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="width: 55px; height: 55px; display: flex; align-items: center; justify-content: center;">
+                <img src="/static/images/left_logo.png" alt="Left Arch Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;" onerror="this.src='https://placehold.co/60x60?text=Arch';">
+            </div>
+            <div style="text-align: center; flex: 1; color: #7a1f1f;">
+                <div style="font-size: 11px; font-style: italic; color: #333;">II Shri Neelkhanteshwar Prasanna II</div>
+                <div style="font-size: 22px; font-weight: 900; font-family: Impact, sans-serif; letter-spacing: 0.5px; margin: 2px 0;">SHRI NEELAKANTESHWAR SAREES</div>
+                <div style="font-size: 11px; color: #111;">Sadashiv Nagar, Near Old Water Tank, <b>BANHATTI-587311</b> | Prop: <b>Shankar Irappa Hipparagi</b></div>
+            </div>
+            <div style="width: 55px; height: 55px; border-radius: 50%; border: 2px solid #7a1f1f; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                <img src="/static/images/right_logo.png" alt="Right Deity Logo" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/60x60?text=Deity';">
+            </div>
+        </div>
+        <div style="text-align: center; font-size: 14px; font-weight: bold; color: #7a1f1f; margin-top: 6px; border-top: 1px solid #7a1f1f; padding-top: 4px;">
+            ಶ್ರೀ ನೀಲಕಂಠೇಶ್ವರ ಸೀರೆಸ್, ಬನಹಟ್ಟಿ
+        </div>
+    </div>
+</div>
+
+<!-- 1. STATS GRID PANELS (iPhone Glassmorphism Style) -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-title">Total Production</span>
+            <div class="stat-icon" style="background: var(--accent-indigo-glow); color: var(--accent-indigo);">
+                <i class="fa-solid fa-boxes-stacked"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ stats.total_production }} <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Pcs</span></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+            <span>Sarees woven globally</span>
+            <span style="color: var(--accent-emerald); font-weight: 700;"><i class="fa-solid fa-arrow-trend-up"></i> +12%</span>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-title">Worker Payments</span>
+            <div class="stat-icon" style="background: var(--accent-amber-glow); color: var(--accent-amber);">
+                <i class="fa-solid fa-hand-holding-dollar"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ stats.total_labor | currency }}</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+            <span>Total labor payout</span>
+            <span style="color: var(--accent-amber); font-weight: 700;"><i class="fa-solid fa-check"></i> Paid</span>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-title">Total Revenue</span>
+            <div class="stat-icon" style="background: var(--accent-emerald-glow); color: var(--accent-emerald);">
+                <i class="fa-solid fa-sack-dollar"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ stats.total_revenue | currency }}</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+            <span>Wholesale catalog value</span>
+            <span style="color: var(--accent-emerald); font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Valid</span>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-title">Net Profit Margin</span>
+            <div class="stat-icon" style="background: var(--accent-rose-glow); color: var(--accent-rose);">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+        </div>
+        <div class="stat-value" style="color: var(--accent-emerald);">{{ stats.total_profit | currency }}</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+            <span>Net earnings margin</span>
+            <span style="color: var(--accent-emerald); font-weight: 700;"><i class="fa-solid fa-bolt"></i> High</span>
+        </div>
+    </div>
+</div>
+
+<!-- 2. ANALYTICS CHARTS GRID -->
+<div class="widget-grid" style="margin-top: 24px;">
+    
+    <!-- Production Trend Widget (Area Line Chart) -->
+    <div class="widget widget-col-8">
+        <div class="widget-header">
+            <span class="widget-title">
+                <i class="fa-solid fa-arrow-trend-up" style="color: var(--accent-indigo); margin-right: 8px;"></i>
+                Production & Profit Trend (Last 15 Days)
+            </span>
+            <span class="role-badge" style="font-size: 10px;">15-DAY ANALYTICS</span>
+        </div>
+        <div style="position: relative; height: 320px; width: 100%;">
+            <canvas id="trendsChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Saree Category Breakdown Widget (Doughnut Chart) -->
+    <div class="widget widget-col-4">
+        <div class="widget-header">
+            <span class="widget-title">
+                <i class="fa-solid fa-chart-pie" style="color: var(--accent-amber); margin-right: 8px;"></i>
+                Category Distribution
+            </span>
+        </div>
+        <div style="position: relative; height: 320px; width: 100%; display: flex; align-items: center; justify-content: center;">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Top-performing Weavers Widget (Horizontal Bar Chart) -->
+    <div class="widget widget-col-12">
+        <div class="widget-header">
+            <span class="widget-title">
+                <i class="fa-solid fa-award" style="color: var(--accent-emerald); margin-right: 8px;"></i>
+                Top 5 Active Weavers (By Volume & Earnings)
+            </span>
+            <a href="{{ url_for('admin.list_workers') }}" class="btn btn-secondary btn-sm" style="font-size: 11px;">View All Weavers</a>
+        </div>
+        <div style="position: relative; height: 300px; width: 100%;">
+            <canvas id="rankingsChart"></canvas>
+        </div>
+    </div>
+    
+</div>
+
+<!-- 3. RECENT ACTIVITY LISTS -->
+<div class="widget-grid" style="margin-top: 24px;">
+    
+    <!-- Left column: Recent Production Items -->
+    <div class="widget widget-col-6">
+        <div class="widget-header">
+            <span class="widget-title">
+                <i class="fa-solid fa-clock" style="color: var(--accent-indigo); margin-right: 8px;"></i>
+                Recent Production Logs
+            </span>
+            <a href="{{ url_for('admin.list_production') }}" class="btn btn-secondary btn-sm" style="font-size: 11px;">View All</a>
+        </div>
+        <div class="table-container">
+            <table class="custom-table" style="font-size: 13px;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Weaver</th>
+                        <th>Saree Type</th>
+                        <th>Qty</th>
+                        <th>Payout</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in recent_productions %}
+                        <tr>
+                            <td>{{ p.date | format_date('%d-%b (%a)') }}</td>
+                            <td><b>{{ p.worker.name }}</b></td>
+                            <td>{{ p.saree.name }} — {{ p.saree.color }}</td>
+                            <td><span class="role-badge" style="background: var(--accent-indigo-glow); color: var(--accent-indigo);">{{ p.quantity }} Pcs</span></td>
+                            <td style="color: var(--accent-emerald); font-weight: 700;">{{ p.worker_earnings | currency }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">No production logs logged yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Right column: Recent System Audit Logs -->
+    <div class="widget widget-col-6">
+        <div class="widget-header">
+            <span class="widget-title">
+                <i class="fa-solid fa-shield-halved" style="color: var(--accent-rose); margin-right: 8px;"></i>
+                System Activity Trail
+            </span>
+            <a href="{{ url_for('admin.list_logs') }}" class="btn btn-secondary btn-sm" style="font-size: 11px;">View Logs</a>
+        </div>
+        <div class="table-container">
+            <table class="custom-table" style="font-size: 13px;">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Operator</th>
+                        <th>Event Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_logs %}
+                        <tr>
+                            <td>{{ log.timestamp | format_date('%I:%M %p') }}</td>
+                            <td><b>{{ log.user.username.capitalize() }}</b></td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 11px; background: rgba(0,0,0,0.06); padding: 4px 8px; border-radius: 6px; color: var(--text-main);">
+                                    {{ log.action }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 20px;">No system activities logged yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+</div>
+
+<!-- BILL SETUP SETTINGS MODAL -->
+<div class="dialog-overlay" id="bill-setup-modal">
+    <div class="dialog-box" style="max-width: 520px;">
+        <span class="dialog-close" onclick="closeDialog('bill-setup-modal')">&times;</span>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #7a1f1f, #b82e2e); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                <i class="fa-solid fa-sliders"></i>
+            </div>
+            <div>
+                <h3 style="font-size: 18px; font-weight: 800; margin: 0; color: var(--text-main);">Bill Setup & Logo Settings</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Update official invoice shop logos and headers</p>
+            </div>
+        </div>
+
+        <form action="{{ url_for('admin.update_bill_setup') }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+                <label for="left_logo"><i class="fa-solid fa-image" style="margin-right: 6px; color: var(--accent-indigo);"></i>Left Logo (Lord Neelakanteshwar Arch Image)</label>
+                <input type="file" name="left_logo" id="left_logo" class="form-control" accept="image/*">
+                <span style="font-size: 11px; color: var(--text-muted);">Recommended: Clear PNG/JPG image for left header logo.</span>
+            </div>
+
+            <div class="form-group">
+                <label for="right_logo"><i class="fa-solid fa-image-portrait" style="margin-right: 6px; color: var(--accent-emerald);"></i>Right Logo (Deity Circle Portrait Image)</label>
+                <input type="file" name="right_logo" id="right_logo" class="form-control" accept="image/*">
+                <span style="font-size: 11px; color: var(--text-muted);">Recommended: Circular Deity portrait image for right header logo.</span>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+                <button type="button" class="btn btn-secondary" onclick="closeDialog('bill-setup-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Save Bill Settings</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js CDN integration -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // Define chart fonts matching Outfit / Inter
+        Chart.defaults.font.family = "'Plus Jakarta Sans', 'Inter', sans-serif";
+        Chart.defaults.color = getComputedStyle(document.body).getPropertyValue('--text-muted').trim() || '#94a3b8';
+        
+        function getThemeColor(variable) {
+            return getComputedStyle(document.body).getPropertyValue(variable).trim();
+        }
+        
+        // --- 1. AREA LINE CHART FOR PRODUCTION & PROFITS ---
+        const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+        const trendLabels = {{ trends['labels'] | tojson }};
+        const trendQty = {{ trends['quantities'] | tojson }};
+        const trendProfit = {{ trends['profits'] | tojson }};
+        
+        const trendsChart = new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [
+                    {
+                        label: 'Sarees Produced',
+                        data: trendQty,
+                        borderColor: getThemeColor('--accent-indigo'),
+                        backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Profit Generated (INR)',
+                        data: trendProfit,
+                        borderColor: getThemeColor('--accent-emerald'),
+                        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                        fill: false,
+                        tension: 0.35,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { boxWidth: 12, padding: 20 }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: getThemeColor('--border-color') }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        grid: { color: getThemeColor('--border-color') },
+                        title: { display: true, text: 'Quantity (Pcs)' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'Profit (INR)' }
+                    }
+                }
+            }
+        });
+        
+        // --- 2. DOUGHNUT CHART FOR CATEGORY BREAKDOWNS ---
+        const catCtx = document.getElementById('categoryChart').getContext('2d');
+        const catLabels = {{ sarees_dist['labels'] | tojson }};
+        const catValues = {{ sarees_dist['values'] | tojson }};
+        
+        const categoryChart = new Chart(catCtx, {
+            type: 'doughnut',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    data: catValues,
+                    backgroundColor: [
+                        getThemeColor('--accent-indigo'),
+                        getThemeColor('--accent-emerald'),
+                        getThemeColor('--accent-amber'),
+                        getThemeColor('--accent-rose'),
+                        '#8b5cf6',
+                        '#ec4899'
+                    ],
+                    borderWidth: 3,
+                    borderColor: getThemeColor('--bg-secondary')
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 10, padding: 15 }
+                    }
+                },
+                cutout: '68%'
+            }
+        });
+        
+        // --- 3. HORIZONTAL BAR CHART FOR WEAVER RANKINGS ---
+        const rankCtx = document.getElementById('rankingsChart').getContext('2d');
+        const rankLabels = {{ rankings['labels'] | tojson }};
+        const rankQty = {{ rankings['quantities'] | tojson }};
+        const rankEarn = {{ rankings['earnings'] | tojson }};
+        
+        const rankingsChart = new Chart(rankCtx, {
+            type: 'bar',
+            data: {
+                labels: rankLabels,
+                datasets: [
+                    {
+                        label: 'Total Sarees (Pcs)',
+                        data: rankQty,
+                        backgroundColor: getThemeColor('--accent-indigo'),
+                        borderRadius: 8,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Weaver Earnings (INR)',
+                        data: rankEarn,
+                        backgroundColor: getThemeColor('--accent-amber'),
+                        borderRadius: 8,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 12 } }
+                },
+                scales: {
+                    x: {
+                        grid: { color: getThemeColor('--border-color') }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        grid: { color: getThemeColor('--border-color') },
+                        title: { display: true, text: 'Quantity Woven (Pcs)' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'Earnings Paid (INR)' }
+                    }
+                }
+            }
+        });
+        
+        // Update Chart ticks coloring when theme toggles
+        const observer = new MutationObserver(() => {
+            const newTextColor = getThemeColor('--text-muted');
+            const newBorderColor = getThemeColor('--border-color');
+            const charts = [trendsChart, categoryChart, rankingsChart];
+            
+            charts.forEach(c => {
+                c.options.plugins.legend.labels.color = newTextColor;
+                if (c.options.scales) {
+                    if (c.options.scales.x) {
+                        c.options.scales.x.ticks.color = newTextColor;
+                        c.options.scales.x.grid.color = newBorderColor;
+                    }
+                    if (c.options.scales.y) {
+                        c.options.scales.y.ticks.color = newTextColor;
+                        c.options.scales.y.grid.color = newBorderColor;
+                    }
+                    if (c.options.scales.y1) {
+                        c.options.scales.y1.ticks.color = newTextColor;
+                    }
+                }
+                c.update();
+            });
+        });
+        
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+    
+</script>
+{% endblock %}

@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+
+{% block title %}Billing & Settlements - Saree Factory Portal{% endblock %}
+
+{% block page_header %}
+<h1>Billing & Reports Statement Center</h1>
+<p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Calculate weekly/monthly worker settlements, verify company margins, and export professional PDF invoices</p>
+{% endblock %}
+
+{% block content %}
+
+<!-- 1. LIVE PENDING LEDGER (UNSETTLED BALANCE SUMMARY) -->
+<div class="widget widget-col-12">
+    <h3 class="widget-title"><i class="fa-solid fa-scale-unbalanced" style="color: var(--accent-amber); margin-right: 8px;"></i>Weavers Active Unsettled Ledger</h3>
+    <div class="table-container">
+        <table class="custom-table" style="font-size: 13.5px;">
+            <thead>
+                <tr>
+                    <th>Weaver Name</th>
+                    <th>Last Billing Date</th>
+                    <th>Unbilled Production (Pcs)</th>
+                    <th>Unbilled Earnings (Payout)</th>
+                    <th>Unbilled Advances</th>
+                    <th>Estimated Net Payout</th>
+                    <th>Status Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in workers %}
+                    {% set summary = unsettled_summaries[w.id] %}
+                    <tr>
+                        <td><b>{{ w.name }}</b></td>
+                        <td>
+                            {% if summary.last_billed_date %}
+                                <span style="font-size: 12px; color: var(--text-muted);">Up to {{ summary.last_billed_date | format_date('%d-%b-%Y') }}</span>
+                            {% else %}
+                                <span class="badge info" style="font-size: 11px;">Never Billed</span>
+                            {% endif %}
+                        </td>
+                        <td><b>{{ summary.qty }}</b></td>
+                        <td style="color: var(--accent-amber); font-weight: 600;">{{ summary.earnings | currency }}</td>
+                        <td style="color: var(--accent-rose); font-weight: 600;">{{ summary.advance | currency }}</td>
+                        <td style="color: var(--accent-emerald); font-weight: 700;">
+                            {% set net_est = summary.earnings - summary.advance %}
+                            {% if net_est < 0 %}{% set net_est = 0 %}{% endif %}
+                            {{ net_est | currency }}
+                        </td>
+                        <td>
+                            {% if summary.qty > 0 %}
+                                <button class="btn btn-primary btn-sm quick-bill-btn" 
+                                        data-worker-id="{{ w.id }}"
+                                        data-worker-name="{{ w.name }}"
+                                        data-advance="{{ summary.advance }}"
+                                        data-start-date="{% if summary.last_billed_date %}{{ summary.last_billed_date | format_date('%Y-%m-%d') }}{% else %}{{ w.joining_date | format_date('%Y-%m-%d') }}{% endif %}"
+                                        title="Create statement for this worker">
+                                    <i class="fa-solid fa-receipt"></i> Generate Statement
+                                </button>
+                            {% else %}
+                                <span style="font-size: 12px; color: var(--text-muted);"><i class="fa-solid fa-circle-check" style="color: var(--accent-emerald); margin-right: 4px;"></i>All Paid</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="widget-grid">
+    
+    <!-- 2. LEFT COLUMN: GENERATE STATEMENT FORM -->
+    <div class="widget widget-col-4">
+        <h3 class="widget-title"><i class="fa-solid fa-file-invoice" style="color: var(--accent-indigo); margin-right: 8px;"></i>Generate Invoice Statement</h3>
+        
+        <form action="{{ url_for('admin.generate_bill') }}" method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+            
+            <div class="form-group">
+                <label for="worker_select">Select Weaver</label>
+                <select name="worker_id" id="worker_select" class="form-control" required>
+                    <option value="" disabled selected>-- Select Weaver --</option>
+                    {% for w in workers %}
+                        {% set summary = unsettled_summaries[w.id] %}
+                        <option value="{{ w.id }}" data-advance="{{ summary.advance }}">{{ w.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="deduct_amount">Deduct Advance Amount (₹)</label>
+                <input type="number" name="deduct_amount" id="deduct_amount" class="form-control" placeholder="0.00" min="0" step="0.01" value="0.00" required>
+                <span id="advance_help_text" style="font-size: 12px; color: var(--text-muted); margin-top: 4px; display: block;">Pending advance balance: ₹0.00</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="start_date">Statement Start Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="end_date">Statement End Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="status">Initial Statement Status</label>
+                <select name="status" id="status" class="form-control" required>
+                    <option value="pending">Pending Settlement</option>
+                    <option value="paid">Paid (Instantly Settle)</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-emerald" style="width: 100%; margin-top: 8px;">
+                <i class="fa-solid fa-file-pdf"></i> Compile Report & PDF
+            </button>
+            
+        </form>
+    </div>
+    
+    <!-- 3. RIGHT COLUMN: HISTORIC STATEMENTS LOG -->
+    <div class="widget widget-col-8">
+        <h3 class="widget-title"><i class="fa-solid fa-history" style="color: var(--accent-indigo); margin-right: 8px;"></i>Statements History Log</h3>
+        
+        <div class="table-container">
+            <table class="custom-table" style="font-size: 13px;">
+                <thead>
+                    <tr>
+                        <th>Statement ID</th>
+                        <th>Weaver</th>
+                        <th>Billed Dates</th>
+                        <th>Sarees</th>
+                        <th>Gross Earn</th>
+                        <th>Advances</th>
+                        <th>Net Payout</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in billings %}
+                        <tr>
+                            <td><b>SPM-{{ b.worker_id }}-{{ b.created_at | format_date('%m%y') }}-{{ b.id }}</b></td>
+                            <td><b>{{ b.worker.name }}</b></td>
+                            <td style="font-size: 11px; color: var(--text-muted);">
+                                {{ b.start_date | format_date('%d/%m') }} to {{ b.end_date | format_date('%d/%m/%y') }}
+                            </td>
+                            <td><b>{{ b.total_production }}</b></td>
+                            <td style="color: var(--text-muted); font-weight: 500;">{{ b.total_earnings | currency }}</td>
+                            <td style="color: var(--accent-rose); font-weight: 500;">- {{ b.advance_deducted | currency }}</td>
+                            <td style="color: var(--accent-emerald); font-weight: 700;">{{ b.net_payout | currency }}</td>
+                            <td>
+                                <span class="badge {% if b.status == 'paid' %}paid{% else %}pending{% endif %}">
+                                    {{ b.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: 6px; align-items: center;">
+                                    <!-- Download PDF downlink -->
+                                    <a href="/{{ b.pdf_path }}" 
+                                       class="btn btn-secondary btn-sm" 
+                                       target="_blank" 
+                                       style="padding: 4px 8px; font-size: 11px; color: var(--accent-indigo);" 
+                                       title="Download Invoice PDF">
+                                        <i class="fa-solid fa-file-arrow-down"></i>
+                                    </a>
+                                    
+                                    <!-- Settle if pending -->
+                                    {% if b.status == 'pending' %}
+                                        <a href="{{ url_for('admin.settle_bill', id=b.id) }}" 
+                                           class="btn btn-emerald btn-sm" 
+                                           style="padding: 4px 8px; font-size: 11px;" 
+                                           title="Mark Paid">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                        </a>
+                                    {% endif %}
+                                    
+                                    <!-- Delete statement -->
+                                    <a href="{{ url_for('admin.delete_bill', id=b.id) }}" 
+                                       class="btn btn-rose btn-sm" 
+                                       onclick="return confirm('Erase this billing log? Registered files will be removed!');" 
+                                       style="padding: 4px 8px; font-size: 11px;" 
+                                       title="Delete statement log">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                <i class="fa-solid fa-receipt" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+                                No generated statements found. Compile one on the left!
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+</div>
+
+<div class="widget-grid" style="margin-top: 24px; border-top: 2px dashed var(--border-color); padding-top: 24px;">
+    
+    <!-- 4. LEFT COLUMN: ISSUE ADVANCE PAYOUT FORM -->
+    <div class="widget widget-col-4">
+        <h3 class="widget-title"><i class="fa-solid fa-hand-holding-dollar" style="color: var(--accent-rose); margin-right: 8px;"></i>Issue Advance Payout</h3>
+        
+        <form action="{{ url_for('admin.add_advance') }}" method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+            
+            <div class="form-group">
+                <label for="adv_worker_select">Select Weaver</label>
+                <select name="worker_id" id="adv_worker_select" class="form-control" required>
+                    <option value="" disabled selected>-- Select Weaver --</option>
+                    {% for w in workers %}
+                        <option value="{{ w.id }}">{{ w.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="adv_amount">Advance Amount (₹)</label>
+                <input type="number" name="amount" id="adv_amount" class="form-control" placeholder="e.g. 5000" min="1" step="0.01" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="adv_reason">Reason / Remark</label>
+                <input type="text" name="reason" id="adv_reason" class="form-control" placeholder="e.g. Hospital treatment, Emergency" required>
+            </div>
+
+            <div class="form-group">
+                <label for="adv_date">Date Issued</label>
+                <input type="date" name="date" id="adv_date" class="form-control" required>
+            </div>
+            
+            <button type="submit" class="btn btn-rose" style="width: 100%; margin-top: 8px;">
+                <i class="fa-solid fa-receipt"></i> Register Advance Payout
+            </button>
+            
+        </form>
+    </div>
+    
+    <!-- 5. RIGHT COLUMN: ACTIVE ADVANCES LOG -->
+    <div class="widget widget-col-8">
+        <h3 class="widget-title"><i class="fa-solid fa-list-check" style="color: var(--accent-rose); margin-right: 8px;"></i>Worker Advances Register</h3>
+        
+        <div class="table-container">
+            <table class="custom-table" style="font-size: 13px;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Weaver</th>
+                        <th>Amount</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Linked Bill</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adv in advances %}
+                        <tr>
+                            <td>{{ adv.date | format_date('%d-%b-%Y') }}</td>
+                            <td><b>{{ adv.worker.name }}</b></td>
+                            <td style="color: var(--accent-rose); font-weight: 600;">{{ adv.amount | currency }}</td>
+                            <td><i>{{ adv.reason or 'N/A' }}</i></td>
+                            <td>
+                                <span class="badge {% if adv.status == 'deducted' %}paid{% else %}pending{% endif %}">
+                                    {{ adv.status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if adv.billing_id %}
+                                    <span style="font-family: monospace; font-size: 11px;">SPM-{{ adv.billing_id }}</span>
+                                {% else %}
+                                    <span style="color: var(--text-muted); font-size: 11px;">Not deducted yet</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if adv.status == 'pending' %}
+                                    <a href="{{ url_for('admin.delete_advance', id=adv.id) }}" 
+                                       class="btn btn-rose btn-sm" 
+                                       onclick="return confirm('Erase this advance payout ledger entry?');" 
+                                       style="padding: 4px 8px; font-size: 11px;" 
+                                       title="Remove entry">
+                                        <i class="fa-solid fa-trash-can"></i> Delete
+                                    </a>
+                                {% else %}
+                                    <span style="color: var(--text-muted); font-size: 11px;">Locked</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                <i class="fa-solid fa-hand-holding-dollar" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+                                No worker advances recorded yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const endDate = document.getElementById('end_date');
+        const startDate = document.getElementById('start_date');
+        
+        // Calculate dynamic Wednesday to Tuesday week cycle
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0: Sunday, 1: Monday, 2: Tuesday, etc.
+        
+        // Find most recent completed Tuesday (day 2)
+        let daysToTuesday = (dayOfWeek - 2 + 7) % 7;
+        const lastTuesday = new Date(today);
+        lastTuesday.setDate(today.getDate() - daysToTuesday);
+        
+        // Find Wednesday before that Tuesday (6 days prior)
+        const lastWednesday = new Date(lastTuesday);
+        lastWednesday.setDate(lastTuesday.getDate() - 6);
+        
+        // Local date string formatted to YYYY-MM-DD in local time zone
+        const formatLocalDate = (date) => {
+            const offset = date.getTimezoneOffset();
+            const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+            return localDate.toISOString().substring(0, 10);
+        };
+        
+        const defaultEndDateStr = formatLocalDate(lastTuesday);
+        const defaultStartDateStr = formatLocalDate(lastWednesday);
+        
+        if (endDate) {
+            endDate.value = defaultEndDateStr;
+        }
+        if (startDate) {
+            startDate.value = defaultStartDateStr;
+        }
+        
+        const advDate = document.getElementById('adv_date');
+        if (advDate) {
+            advDate.value = formatLocalDate(today);
+        }
+        
+        const deductAmountInput = document.getElementById('deduct_amount');
+        const advanceHelpText = document.getElementById('advance_help_text');
+        
+        function updateAdvanceDeductionLimit() {
+            if (workerSelect) {
+                const selectedOption = workerSelect.options[workerSelect.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    const advanceAmt = parseFloat(selectedOption.getAttribute('data-advance') || '0');
+                    if (advanceHelpText) {
+                        advanceHelpText.innerHTML = `Pending advance balance: <b style="color: var(--accent-rose);">₹${advanceAmt.toFixed(2)}</b>`;
+                    }
+                    if (deductAmountInput) {
+                        deductAmountInput.value = advanceAmt.toFixed(2);
+                        deductAmountInput.max = advanceAmt.toFixed(2);
+                    }
+                } else {
+                    if (advanceHelpText) {
+                        advanceHelpText.innerHTML = `Pending advance balance: ₹0.00`;
+                    }
+                    if (deductAmountInput) {
+                        deductAmountInput.value = "0.00";
+                        deductAmountInput.max = "";
+                    }
+                }
+            }
+        }
+        
+        if (workerSelect) {
+            workerSelect.addEventListener('change', updateAdvanceDeductionLimit);
+        }
+        
+        // --- 1. QUICK BILL BUTTON TRIGGERS ---
+        const quickBillBtns = document.querySelectorAll('.quick-bill-btn');
+        
+        quickBillBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const wId = btn.getAttribute('data-worker-id');
+                const wStart = btn.getAttribute('data-start-date');
+                const wName = btn.getAttribute('data-worker-name');
+                const advanceAmt = parseFloat(btn.getAttribute('data-advance') || '0');
+                
+                if (advanceAmt > 0) {
+                    alert(`Notice: Weaver "${wName}" has a pending advance balance of ₹${advanceAmt.toFixed(2)} which will be automatically filled for deduction. You can reduce this amount below if needed.`);
+                }
+                
+                // Select worker in dropdown
+                if (workerSelect) {
+                    workerSelect.value = wId;
+                    updateAdvanceDeductionLimit();
+                }
+                
+                // Autofill start and end date
+                if (startDate) startDate.value = wStart;
+                if (endDate) endDate.value = defaultEndDateStr;
+                
+                // Scroll down to the generation form
+                if (workerSelect) workerSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Focus dropdown to highlight
+                workerSelect.focus();
+            });
+        });
+
+        // --- 2. FORM SUBMIT ADVANCE DEDUCTION CONFIRMATION ---
+        const generateForm = document.querySelector('form[action*="generate_bill"]');
+        if (generateForm) {
+            generateForm.addEventListener('submit', (e) => {
+                if (workerSelect) {
+                    const selectedOption = workerSelect.options[workerSelect.selectedIndex];
+                    if (selectedOption) {
+                        const advanceAmt = parseFloat(selectedOption.getAttribute('data-advance') || '0');
+                        const wName = selectedOption.text;
+                        const enteredDeduct = parseFloat(deductAmountInput ? deductAmountInput.value : '0') || 0;
+                        
+                        if (enteredDeduct > advanceAmt) {
+                            alert(`Error: You cannot deduct ₹${enteredDeduct.toFixed(2)} because the weaver only has ₹${advanceAmt.toFixed(2)} in pending advances.`);
+                            e.preventDefault();
+                            return;
+                        }
+                        
+                        if (enteredDeduct > 0) {
+                            const confirmProceed = confirm(`Attention: You have entered ₹${enteredDeduct.toFixed(2)} to be deducted from "${wName}"'s weekly payout statement. \n\nDo you want to proceed and generate the bill statement?`);
+                            if (!confirmProceed) {
+                                e.preventDefault(); // Cancel submission
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+
+{% block title %}Saree Catalog - Saree Factory Portal{% endblock %}
+
+{% block page_header %}
+<h1>Saree Catalog</h1>
+<p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Manage saree types, raw materials costs, selling rates, and labor payouts</p>
+{% endblock %}
+
+{% block content %}
+
+<!-- 1. ACTIONS HEADER BAR -->
+<div class="table-filters" style="justify-content: space-between;">
+    <div style="position: relative; max-width: 320px; width: 100%;">
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+        <input type="text" id="saree-search" class="form-control" placeholder="Search catalog..." style="padding-left: 40px; width: 100%;">
+    </div>
+    
+    <button class="btn btn-primary" onclick="openDialog('add-saree-dialog')">
+        <i class="fa-solid fa-plus"></i> Add New Saree
+    </button>
+</div>
+
+<!-- 2. MAIN CATALOG TABLE -->
+<div class="widget widget-col-12" style="padding: 0; overflow: hidden;">
+    <div class="table-container">
+        <table class="custom-table" id="sarees-table">
+            <thead>
+                <tr>
+                    <th>Saree Name</th>
+                    <th>Color</th>
+                    <th>Category</th>
+                    <th>Cost Price (Raw)</th>
+                    <th>Labor Payment (Weaver)</th>
+                    <th>Selling Price (Wholesale)</th>
+                    <th>Profit margin (Unit)</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for saree in sarees %}
+                    {% set margin = saree.selling_price - saree.cost_price - saree.worker_payment %}
+                    <tr class="saree-row">
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                {% if saree.saree_image %}
+                                    <img src="{{ url_for('static', filename='uploads/sarees/' ~ saree.saree_image) }}" alt="{{ saree.name }}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color); flex-shrink: 0;">
+                                {% else %}
+                                    <div style="width: 40px; height: 40px; border-radius: 6px; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-color); color: var(--text-muted); flex-shrink: 0;">
+                                        <i class="fa-solid fa-image" style="font-size: 14px;"></i>
+                                    </div>
+                                {% endif %}
+                                <b>{{ saree.name }}</b>
+                            </div>
+                        </td>
+                        <td><span class="badge info">{{ saree.color }}</span></td>
+                        <td><span class="badge info">{{ saree.category }}</span></td>
+                        <td>{{ saree.cost_price | currency }}</td>
+                        <td style="color: var(--accent-amber); font-weight: 500;">{{ saree.worker_payment | currency }}</td>
+                        <td style="color: var(--accent-indigo); font-weight: 500;">{{ saree.selling_price | currency }}</td>
+                        <td style="color: {% if margin >= 0 %}var(--accent-emerald){% else %}var(--accent-rose){% endif %}; font-weight: 600;">
+                            {{ margin | currency }}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary btn-sm edit-saree-btn" 
+                                        data-id="{{ saree.id }}"
+                                        data-name="{{ saree.name }}"
+                                        data-color="{{ saree.color }}"
+                                        data-category="{{ saree.category }}"
+                                        data-cost="{{ saree.cost_price }}"
+                                        data-selling="{{ saree.selling_price }}"
+                                        data-payment="{{ saree.worker_payment }}"
+                                        data-image="{{ saree.saree_image or '' }}"
+                                        title="Edit Product">
+                                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                                </button>
+                                <a href="{{ url_for('admin.delete_saree', id=saree.id) }}" 
+                                   class="btn btn-rose btn-sm"
+                                   onclick="return confirm('Are you absolutely sure you want to delete \'{{ saree.name }}\'?');"
+                                   title="Remove Product">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i class="fa-solid fa-box-open" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+                            No sarees found in the catalog. Add one above!
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 3. ADD SAREE DIALOG BOX -->
+<div class="dialog-overlay" id="add-saree-dialog">
+    <div class="dialog-box">
+        <i class="fa-solid fa-xmark dialog-close" onclick="closeDialog('add-saree-dialog')"></i>
+        <h3 class="widget-title">Add New Saree Product</h3>
+        
+        <form action="{{ url_for('admin.add_saree') }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+                <label for="add-name">Saree Product Name</label>
+                <input type="text" name="name" id="add-name" class="form-control" placeholder="e.g. Kanchipuram Brocade" required>
+            </div>
+
+            <div class="form-group">
+                <label for="add-color">Color</label>
+                <input type="text" name="color" id="add-color" class="form-control" placeholder="e.g. Royal Blue" maxlength="50" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="add-category">Category Type</label>
+                <select name="category" id="add-category" class="form-control" required>
+                    <option value="Silk">Silk</option>
+                    <option value="Cotton">Cotton</option>
+                    <option value="Georgette">Georgette</option>
+                    <option value="Crepe">Crepe</option>
+                    <option value="Chiffon">Chiffon</option>
+                    <option value="Banarasi">Banarasi</option>
+                    <option value="Linen">Linen</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="add-image">Saree Product Image</label>
+                <input type="file" name="saree_image" id="add-image" class="form-control" accept="image/*">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label for="add-cost">Cost Price (₹)</label>
+                    <input type="number" step="0.01" name="cost_price" id="add-cost" class="form-control" placeholder="0.00" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="add-payment">Weaver Labor Rate (₹)</label>
+                    <input type="number" step="0.01" name="worker_payment" id="add-payment" class="form-control" placeholder="0.00" min="0" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="add-selling">Selling Price (Wholesale) (₹)</label>
+                <input type="number" step="0.01" name="selling_price" id="add-selling" class="form-control" placeholder="0.00" min="0" required>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeDialog('add-saree-dialog')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 4. EDIT SAREE DIALOG BOX (Unified Modal) -->
+<div class="dialog-overlay" id="edit-saree-dialog">
+    <div class="dialog-box">
+        <i class="fa-solid fa-xmark dialog-close" onclick="closeDialog('edit-saree-dialog')"></i>
+        <h3 class="widget-title">Edit Saree Product</h3>
+        
+        <form id="edit-saree-form" action="" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+                <label for="edit-name">Saree Product Name</label>
+                <input type="text" name="name" id="edit-name" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-color">Color</label>
+                <input type="text" name="color" id="edit-color" class="form-control" maxlength="50" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-category">Category Type</label>
+                <select name="category" id="edit-category" class="form-control" required>
+                    <option value="Silk">Silk</option>
+                    <option value="Cotton">Cotton</option>
+                    <option value="Georgette">Georgette</option>
+                    <option value="Crepe">Crepe</option>
+                    <option value="Chiffon">Chiffon</option>
+                    <option value="Banarasi">Banarasi</option>
+                    <option value="Linen">Linen</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Saree Product Image</label>
+                <div id="edit-image-preview-container" style="display: none; margin-bottom: 8px; align-items: center; gap: 12px; background: var(--bg-secondary); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <img id="edit-image-preview" src="" style="width: 48px; height: 48px; object-fit: cover; border-radius: 6px;">
+                    <span style="font-size: 12px; color: var(--text-muted);">Current Saree Image</span>
+                </div>
+                <input type="file" name="saree_image" id="edit-image" class="form-control" accept="image/*">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label for="edit-cost">Cost Price (₹)</label>
+                    <input type="number" step="0.01" name="cost_price" id="edit-cost" class="form-control" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-payment">Weaver Labor Rate (₹)</label>
+                    <input type="number" step="0.01" name="worker_payment" id="edit-payment" class="form-control" min="0" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-selling">Selling Price (Wholesale) (₹)</label>
+                <input type="number" step="0.01" name="selling_price" id="edit-selling" class="form-control" min="0" required>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeDialog('edit-saree-dialog')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- 1. LOCAL SEARCH FILTER ---
+        const searchInput = document.getElementById('saree-search');
+        const rows = document.querySelectorAll('.saree-row');
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.toLowerCase().trim();
+                
+                rows.forEach(row => {
+                    row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+                });
+            });
+        }
+        
+        // --- 2. EDIT MODAL BINDINGS ---
+        const editButtons = document.querySelectorAll('.edit-saree-btn');
+        const editForm = document.getElementById('edit-saree-form');
+        const editName = document.getElementById('edit-name');
+        const editColor = document.getElementById('edit-color');
+        const editCategory = document.getElementById('edit-category');
+        const editCost = document.getElementById('edit-cost');
+        const editSelling = document.getElementById('edit-selling');
+        const editPayment = document.getElementById('edit-payment');
+        const editImagePreviewContainer = document.getElementById('edit-image-preview-container');
+        const editImagePreview = document.getElementById('edit-image-preview');
+        
+        editButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                const color = btn.getAttribute('data-color');
+                const category = btn.getAttribute('data-category');
+                const cost = btn.getAttribute('data-cost');
+                const selling = btn.getAttribute('data-selling');
+                const payment = btn.getAttribute('data-payment');
+                const image = btn.getAttribute('data-image');
+                
+                // Set form action path dynamically
+                editForm.setAttribute('action', `/admin/sarees/edit/${id}`);
+                
+                // Populate inputs
+                editName.value = name;
+                editColor.value = color;
+                editCategory.value = category;
+                editCost.value = parseFloat(cost);
+                editSelling.value = parseFloat(selling);
+                editPayment.value = parseFloat(payment);
+                
+                // Update Image Preview
+                if (image && image !== 'None' && image.trim() !== '') {
+                    editImagePreview.src = `/static/uploads/sarees/${image}`;
+                    editImagePreviewContainer.style.display = 'flex';
+                } else {
+                    editImagePreviewContainer.style.display = 'none';
+                    editImagePreview.src = '';
+                }
+                
+                // Open dialog
+                openDialog('edit-saree-dialog');
+            });
+        });
+    });
+</script>
+{% endblock %}

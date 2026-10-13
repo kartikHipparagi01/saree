@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shri Neelakanteshwar Sarees - Tax Invoice - {{ invoice.invoice_number }}</title>
+<style>
+  :root{
+    --maroon:#7a1f1f;
+    --line:#7a1f1f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family: 'Georgia','Times New Roman',serif;
+    background: radial-gradient(circle at top, #f1ece0, #ddd6c4 80%);
+    margin:0;
+    padding:24px;
+    color:#111;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .sheet{
+    max-width:840px;
+    margin:0 auto;
+    background:#fffdf7;
+    background-image: linear-gradient(#fffdf7,#fffdf7), repeating-linear-gradient(45deg, rgba(122,31,31,0.015) 0, rgba(122,31,31,0.015) 2px, transparent 2px, transparent 10px);
+    background-blend-mode: normal;
+    border:3px double var(--line);
+    box-shadow: 0 0 0 1px var(--line), 0 10px 30px rgba(0,0,0,0.18);
+    padding:16px 20px 22px;
+    position:relative;
+  }
+  .topline{
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    font-weight:bold;
+    border-bottom:1px solid var(--line);
+    padding-bottom:4px;
+    margin-bottom:6px;
+    color:#111;
+  }
+  .topline .center{
+    text-align:center;
+    flex:1;
+  }
+  .header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .logo-box{
+    width:110px;
+    height:110px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    font-size:10px;
+    color:#888;
+    overflow:hidden;
+    flex-shrink:0;
+    background:#fffdf7;
+    padding:4px;
+  }
+  .logo-box img{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+  }
+  #logoRight{
+    border-radius:50%;
+    box-shadow: 0 0 0 2px #fffdf7, 0 0 0 3px var(--maroon);
+  }
+  #logoRight img{
+    object-fit:cover;
+    border-radius:50%;
+    width:100%;
+    height:100%;
+  }
+  .title-block{
+    text-align:center;
+    flex:1;
+    color:var(--maroon);
+  }
+  .title-block .prasanna{
+    font-size:12px;
+    font-style:italic;
+    color:#333;
+  }
+  .title-block .shopname{
+    font-size:30px;
+    font-weight:900;
+    letter-spacing:1px;
+    font-family: Impact, 'Arial Black', serif;
+    margin:2px 0;
+  }
+  .title-block .addr{
+    font-size:12px;
+    color:#111;
+    line-height:1.3;
+  }
+  .title-block .addr b{ font-size:13px; }
+  .title-block .prop{
+    font-size:12px;
+    font-style:italic;
+    margin-top:2px;
+    color:#111;
+  }
+  .kannada{
+    text-align:center;
+    font-size:18px;
+    font-weight:bold;
+    color:var(--maroon);
+    margin-top:4px;
+    padding-bottom:6px;
+    border-bottom:2px solid var(--maroon);
+  }
+  .invno-row{
+    display:flex;
+    border:2px solid var(--line);
+    border-bottom:none;
+    margin-top:10px;
+    background:#faf3e8;
+  }
+  .invno-row .cell{
+    padding:6px 10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .invno-row .left{
+    border-right:2px solid var(--line);
+    font-weight:bold;
+    white-space:nowrap;
+    color:#111;
+    font-size:14px;
+  }
+  .invno-row .right{
+    flex:1;
+    text-align:center;
+    font-weight:bold;
+    color:var(--maroon);
+  }
+  .invno-row .right .t1{ font-size:18px; letter-spacing:1px; }
+
+  .meta{
+    border:2px solid var(--line);
+    border-top:none;
+    padding:6px 10px;
+  }
+  .meta-row{
+    display:flex;
+    align-items:center;
+    padding:4px 0;
+    border-bottom:1px dotted #bbb;
+    font-size:13px;
+  }
+  .meta-row:last-child{ border-bottom:none; }
+  .meta-row .col-left, .meta-row .col-right{
+    display:flex;
+    align-items:center;
+  }
+  .meta-row .col-left{
+    flex:1;
+  }
+  .meta-row .col-right{
+    width:42%;
+  }
+  .meta-row label{
+    font-weight:bold;
+    white-space:nowrap;
+    color:var(--maroon);
+    min-width:110px;
+  }
+  .meta-row .val{
+    flex:1;
+    font-weight:600;
+    color:#111;
+    padding:0 4px;
+    border-bottom:1px dashed #999;
+  }
+
+  table.items{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:0;
+    font-size:12.5px;
+  }
+  table.items, table.items th, table.items td{
+    border:2px solid var(--line);
+    border-top:none;
+  }
+  table.items th{
+    background:#f4ece2;
+    padding:6px 4px;
+    font-size:12px;
+    color:var(--maroon);
+    font-weight:bold;
+    text-align:center;
+  }
+  table.items td{
+    padding:5px 6px;
+    vertical-align:middle;
+  }
+  table.items td.particulars{
+    text-align:left;
+    font-weight:600;
+  }
+
+  .bottom{
+    display:flex;
+    border:2px solid var(--line);
+    border-top:none;
+  }
+  .bottom .left-col{
+    flex:1;
+    padding:6px 10px;
+    font-size:12px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+  .bottom .left-col .bank p{ margin:2px 0; }
+  .bottom .left-col .words{
+    display:flex;
+    align-items:baseline;
+    gap:6px;
+    margin-top:8px;
+    font-size:12px;
+  }
+  .bottom .left-col .words label{ font-weight:bold; white-space:nowrap; color:var(--maroon); }
+  .bottom .left-col .words .val-words{
+    font-style:italic;
+    font-weight:bold;
+    color:var(--maroon);
+    border-bottom:1px dashed #bbb;
+    flex:1;
+  }
+  .bottom .right-col{
+    width:260px;
+    border-left:2px solid var(--line);
+  }
+  .bottom .right-col table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12.5px;
+  }
+  .bottom .right-col td{
+    border-bottom:1px solid var(--line);
+    padding:4px 8px;
+  }
+  .bottom .right-col tr:last-child td{ border-bottom:none; }
+  .bottom .right-col .label{ text-align:left; white-space:nowrap; color:var(--maroon); font-weight:bold; }
+  .bottom .right-col .amt{ text-align:right; font-weight:600; }
+
+  .terms{
+    display:flex;
+    justify-content:space-between;
+    margin-top:16px;
+    font-size:11px;
+  }
+  .terms ol{ margin:4px 0 0 16px; padding:0; }
+  .terms .sign{
+    text-align:right;
+    font-size:12px;
+    min-width:260px;
+  }
+  .terms .sign .for{
+    font-style:italic;
+    font-weight:bold;
+    color:var(--maroon);
+    margin-bottom:35px;
+  }
+  .terms .sign .line{
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    font-weight:bold;
+  }
+
+  .print-bar{
+    max-width:840px;
+    margin:0 auto 12px;
+    display:flex;
+    justify-content:flex-end;
+  }
+  .print-bar button{
+    background:var(--maroon);
+    color:#fff;
+    border:none;
+    padding:8px 18px;
+    border-radius:4px;
+    font-size:14px;
+    font-weight:bold;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.2);
+  }
+  .print-bar button:hover{ background:#5c1616; }
+
+  @media print{
+    body{ background:#fff !important; padding:0 !important; }
+    .no-print{ display:none !important; }
+    .sheet{
+      border:3px double var(--line) !important;
+      box-shadow:none !important;
+      background:#fffdf7 !important;
+      max-width:100% !important;
+      margin:0 !important;
+      padding:12px 16px !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-bar no-print">
+  <button onclick="window.print()">🖨️ Print Tax Invoice</button>
+</div>
+
+<div class="sheet">
+
+  <div class="topline">
+    <div>GSTIN: 29AIRPH3656G1ZU</div>
+    <div class="center"><u>Subject to Banhatti Jurisdiction</u></div>
+    <div>Cell: 9632371493</div>
+  </div>
+
+  <div class="header">
+    <div class="logo-box" id="logoLeft">
+      <img src="/static/images/left_logo.png" alt="Lord Neelakanteshwar Arch" onerror="this.src='https://placehold.co/100x120?text=Neelakanteshwar';">
+    </div>
+    <div class="title-block">
+      <div class="prasanna">II Shri Neelkhanteshwar Prasanna II</div>
+      <div class="shopname">SHRI NEELAKANTESHWAR SAREES</div>
+      <div class="addr">
+        Sadashiv Nagar, Near Old Water Tank, Dist Bagalkot,<br>
+        <b>BANHATTI-587311</b> (State Karnataka)
+      </div>
+      <div class="prop">Prop: <b>Shankar Irappa Hipparagi</b></div>
+    </div>
+    <div class="logo-box" id="logoRight">
+      <img src="/static/images/right_logo.png" alt="Deity Circle Portrait" onerror="this.src='https://placehold.co/100x100?text=Deity';">
+    </div>
+  </div>
+
+  <div class="kannada">
+    ಶ್ರೀ ನೀಲಕಂಠೇಶ್ವರ ಸೀರೆಸ್, ಬನಹಟ್ಟಿ
+  </div>
+
+  <div class="invno-row">
+    <div class="cell left">
+      Invoice No: <span style="font-size:16px; font-weight:bold; margin-left:6px;">{{ invoice.invoice_number }}</span>
+    </div>
+    <div class="cell right">
+      <div class="t1">TAX INVOICE / CASH/CREDIT MEMO</div>
+    </div>
+  </div>
+
+  <div class="meta">
+    <div class="meta-row">
+      <div class="col-left">
+        <label>Sold To:</label>
+        <span class="val">{{ invoice.customer.name }}</span>
+      </div>
+      <div class="col-right">
+        <label>Place of Supply:</label>
+        <span class="val">{{ invoice.place_of_supply or 'Banhatti' }}</span>
+      </div>
+    </div>
+    <div class="meta-row">
+      <div class="col-left">
+        <label>Invoice Date:</label>
+        <span class="val">{{ invoice.date.strftime('%d-%b-%Y') }}</span>
+      </div>
+      <div class="col-right">
+        <label>State:</label>
+        <span class="val">{{ invoice.customer.state or 'Karnataka' }}</span>
+      </div>
+    </div>
+    <div class="meta-row">
+      <div class="col-left">
+        <label>Lorry No:</label>
+        <span class="val">{{ invoice.lorry_no or 'N/A' }}</span>
+      </div>
+      <div class="col-right">
+        <label>State Code:</label>
+        <span class="val">{{ invoice.customer.state_code or '29' }}</span>
+      </div>
+    </div>
+    <div class="meta-row">
+      <div class="col-left">
+        <label>e-Way Bill No:</label>
+        <span class="val">{{ invoice.eway_bill_no or 'N/A' }}</span>
+      </div>
+      <div class="col-right">
+        <label>Party GSTIN:</label>
+        <span class="val">{{ invoice.customer.gstin or 'None' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width: 5%;">Sl.</th>
+        <th style="width: 30%;">PARTICULARS</th>
+        <th style="width: 15%;">COLOR</th>
+        <th style="width: 11%;">HSN Code</th>
+        <th style="width: 9%;">Mtrs.</th>
+        <th style="width: 7%;">Qty</th>
+        <th style="width: 12%;">Rate (Rs.)</th>
+        <th style="width: 12%;">Amount (Rs.)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if invoice.items %}
+        {% for item in invoice.items %}
+          <tr>
+            <td style="text-align:center;">{{ loop.index }}</td>
+            <td class="particulars">{{ item.saree.name }}</td>
+            <td style="text-align:center;">{{ item.saree.color }}</td>
+            <td style="text-align:center;">{{ item.hsn_code }}</td>
+            <td style="text-align:center;">{{ item.meters }}</td>
+            <td style="text-align:center;">{{ item.quantity }}</td>
+            <td style="text-align:right;">{{ "{:,.2f}".format(item.rate) }}</td>
+            <td style="text-align:right;">{{ "{:,.2f}".format(item.amount) }}</td>
+          </tr>
+        {% endfor %}
+        {% set items_count = invoice.items|length %}
+      {% else %}
+        <tr>
+          <td style="text-align:center;">1</td>
+          <td class="particulars">Saree Consignment (As per ledger)</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">5007</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">1</td>
+          <td style="text-align:right;">{{ "{:,.2f}".format(invoice.taxable_value) }}</td>
+          <td style="text-align:right;">{{ "{:,.2f}".format(invoice.taxable_value) }}</td>
+        </tr>
+        {% set items_count = 1 %}
+      {% endif %}
+
+      {% set needed_padding = 6 - items_count %}
+      {% if needed_padding > 0 %}
+        {% for _ in range(needed_padding) %}
+          <tr>
+            <td>&nbsp;</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        {% endfor %}
+      {% endif %}
+    </tbody>
+  </table>
+
+  <div class="bottom">
+    <div class="left-col">
+      <div class="bank">
+        <p><b>🏛️ Bank Details for Payments:</b></p>
+        <p><b>Bank of Baroda</b> &nbsp;|&nbsp; Branch: <b>Banhatti</b></p>
+        <p>A/c No: <b>82970200000031</b> &nbsp;|&nbsp; IFS Code: <b>BARB0VJBANH</b></p>
+      </div>
+      <div class="words">
+        <label>Rupees in words:</label>
+        <span class="val-words">{{ words }}</span>
+      </div>
+    </div>
+    <div class="right-col">
+      <table>
+        <tr>
+          <td class="label">Taxable Value:</td>
+          <td class="amt">₹{{ "{:,.2f}".format(invoice.taxable_value) }}</td>
+        </tr>
+        <tr>
+          <td class="label">SGST ({{ invoice.sgst_rate }}%):</td>
+          <td class="amt">₹{{ "{:,.2f}".format(invoice.sgst_amount) }}</td>
+        </tr>
+        <tr>
+          <td class="label">CGST ({{ invoice.cgst_rate }}%):</td>
+          <td class="amt">₹{{ "{:,.2f}".format(invoice.cgst_amount) }}</td>
+        </tr>
+        <tr>
+          <td class="label">IGST ({{ invoice.igst_rate }}%):</td>
+          <td class="amt">₹{{ "{:,.2f}".format(invoice.igst_amount) }}</td>
+        </tr>
+        <tr>
+          <td class="label">Round Off:</td>
+          <td class="amt">₹{{ "{:,.2f}".format(invoice.round_off) }}</td>
+        </tr>
+        <tr>
+          <td class="label" style="font-size:14px; color:var(--maroon); font-weight:900;">G. TOTAL:</td>
+          <td class="amt" style="font-size:14px; color:var(--maroon); font-weight:900;">₹{{ "{:,.2f}".format(invoice.grand_total) }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="terms">
+    <div>
+      <b style="color:var(--maroon);">TERMS & CONDITIONS :</b>
+      <ol>
+        <li>Our responsibility ceases once goods leave our godown.</li>
+        <li>We are not responsible for any damage in transit.</li>
+        <li>Goods once sold cannot be taken back.</li>
+        <li>Interest will be charged @ 18% if Amount not paid within 15 days.</li>
+      </ol>
+    </div>
+    <div class="sign">
+      <div class="for">For Shri Neelakanteshwar Sarees</div>
+      <div class="line">
+        <span>Receiver's Signature</span>
+        <span>Proprietor / Auth. Sign.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

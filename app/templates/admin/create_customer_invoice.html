@@ -1,0 +1,418 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Tax Invoice - Saree Factory Portal{% endblock %}
+
+{% block page_header %}
+<h1>Generate Tax Invoice</h1>
+<p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Produce physical sales bills for outside buyers with automated GST allocations and round-offs</p>
+{% endblock %}
+
+{% block content %}
+
+<!-- BACK NAVIGATION BUTTON -->
+<div style="margin-bottom: 20px;">
+    <a href="{{ url_for('admin.list_sales_invoices') }}" class="btn btn-secondary btn-sm">
+        <i class="fa-solid fa-arrow-left"></i> Back to Sales Ledger
+    </a>
+</div>
+
+<!-- MAIN CREATION WIZARD CARD -->
+<form action="{{ url_for('admin.create_sales_invoice') }}" method="POST" id="invoice-form" style="display: flex; flex-direction: column; gap: 24px;">
+    
+    <!-- 1. GENERAL INVOICE METADATA -->
+    <div class="widget widget-col-12" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
+        <h3 class="widget-title" style="grid-column: 1 / -1; margin-bottom: 4px;">
+            <i class="fa-solid fa-circle-info" style="color: var(--accent-indigo); margin-right: 8px;"></i> Transport & Buyer Metadata
+        </h3>
+        
+        <div class="form-group" style="grid-column: 1 / -1;">
+            <label for="customer_id">Sold To (Customer Party)</label>
+            <select name="customer_id" id="customer_id" class="form-control" required style="width: 100%;">
+                <option value="" disabled selected>-- Select Buyer --</option>
+                <option value="new_customer" style="font-weight: 700; color: var(--accent-indigo);">➕ Register & Add New Customer</option>
+                {% for customer in customers %}
+                    <option value="{{ customer.id }}" data-gstin="{{ customer.gstin or '' }}" data-state="{{ customer.state or 'Karnataka' }}" data-state-code="{{ customer.state_code or '29' }}">
+                        {{ customer.name }} {% if customer.gstin %}({{ customer.gstin }}){% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- New Customer Dynamic registration block -->
+        <div id="new-customer-fields" style="display: none; grid-column: 1 / -1; background: rgba(255, 255, 255, 0.02); border: 1.5px dashed var(--accent-indigo); border-radius: 8px; padding: 20px; margin-top: 10px;">
+            <h4 style="margin: 0 0 16px 0; font-size: 14.5px; color: var(--accent-indigo); font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-user-plus"></i> New Wholesale Customer Registration
+            </h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                <div class="form-group">
+                    <label for="new_customer_name">New Customer Name (Sold To) *</label>
+                    <input type="text" name="new_customer_name" id="new_customer_name" class="form-control" placeholder="e.g. Shri Neelakanteshwar Sarees">
+                </div>
+                <div class="form-group">
+                    <label for="new_customer_gstin">New Customer GSTIN (Optional)</label>
+                    <input type="text" name="new_customer_gstin" id="new_customer_gstin" class="form-control" placeholder="e.g. 29AIRPH3656G1ZU">
+                </div>
+                <div class="form-group">
+                    <label for="new_customer_phone">New Customer Phone</label>
+                    <input type="tel" name="new_customer_phone" id="new_customer_phone" class="form-control" placeholder="Contact number">
+                </div>
+                <div class="form-group">
+                    <label for="new_customer_state">State</label>
+                    <input type="text" name="new_customer_state" id="new_customer_state" class="form-control" value="Karnataka">
+                </div>
+                <div class="form-group">
+                    <label for="new_customer_state_code">State Code</label>
+                    <input type="text" name="new_customer_state_code" id="new_customer_state_code" class="form-control" value="29">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="new_customer_address">Place of Supply (Billing Address)</label>
+                    <input type="text" name="new_customer_address" id="new_customer_address" class="form-control" placeholder="Enter full address or place of supply">
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="invoice_date">Invoice Date</label>
+            <input type="date" name="invoice_date" id="invoice_date" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="place_of_supply">Place of Supply</label>
+            <input type="text" name="place_of_supply" id="place_of_supply" class="form-control" value="Banhatti" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="lorry_no">Lorry No (Vehicle)</label>
+            <input type="text" name="lorry_no" id="lorry_no" class="form-control" placeholder="e.g. KA-23-A-1234">
+        </div>
+        
+        <div class="form-group">
+            <label for="eway_bill_no">eWay Bill No.</label>
+            <input type="text" name="eway_bill_no" id="eway_bill_no" class="form-control" placeholder="e.g. 121456987412">
+        </div>
+    </div>
+    
+    <!-- 2. LINE ITEMS EDITOR TABLE -->
+    <div class="widget widget-col-12" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="widget-title" style="margin: 0;">
+                <i class="fa-solid fa-list-check" style="color: var(--accent-indigo); margin-right: 8px;"></i> Saree Consignment Particulars
+            </h3>
+            <button type="button" class="btn btn-secondary btn-sm" id="add-row-btn">
+                <i class="fa-solid fa-plus"></i> Add Product Line
+            </button>
+        </div>
+        
+        <div class="table-container">
+            <table class="custom-table" id="items-table" style="margin: 0;">
+                <thead>
+                    <tr>
+                        <th style="width: 35%;">Particulars (Saree Product)</th>
+                        <th style="width: 12%;">HSN Code</th>
+                        <th style="width: 10%;">Mtrs</th>
+                        <th style="width: 10%;">Qty (Pcs)</th>
+                        <th style="width: 15%;">Rate (Rs)</th>
+                        <th style="width: 13%;">Amount (Rs)</th>
+                        <th style="width: 5%;"></th>
+                    </tr>
+                </thead>
+                <tbody id="items-tbody">
+                    <!-- Dynamic rows inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 3. TAX ARITHMETIC & BILL CONSOLIDATION SUMMARY -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; align-items: start;">
+        
+        <!-- Left: Tax Percentages Settings -->
+        <div class="widget">
+            <h3 class="widget-title" style="margin-bottom: 16px;">
+                <i class="fa-solid fa-calculator" style="color: var(--accent-indigo); margin-right: 8px;"></i> Tax Configuration
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label for="sgst_rate">SGST Rate (%)</label>
+                    <input type="number" step="0.1" name="sgst_rate" id="sgst_rate" class="form-control" value="2.5" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cgst_rate">CGST Rate (%)</label>
+                    <input type="number" step="0.1" name="cgst_rate" id="cgst_rate" class="form-control" value="2.5" required>
+                </div>
+                
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="igst_rate">IGST Rate (%) (Inter-State)</label>
+                    <input type="number" step="0.1" name="igst_rate" id="igst_rate" class="form-control" value="0.0" required>
+                </div>
+            </div>
+            
+            <div style="margin-top: 16px; font-size: 12.5px; color: var(--text-muted); background: var(--bg-primary); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <i class="fa-solid fa-triangle-exclamation" style="margin-right: 6px; color: var(--accent-amber);"></i>
+                <b>GST Guideline:</b> Saree textiles typically fall under standard <b>5% GST</b> (2.5% SGST + 2.5% CGST). For inter-state supply, clear SGST/CGST and set IGST to <b>5%</b>.
+            </div>
+        </div>
+        
+        <!-- Right: Invoice Calculations Summary -->
+        <div class="widget" style="background: rgba(99, 102, 241, 0.05); border: 1.5px solid var(--accent-indigo);">
+            <h3 class="widget-title" style="margin-bottom: 16px; color: var(--accent-indigo);">
+                <i class="fa-solid fa-receipt" style="margin-right: 8px;"></i> Invoice Bill Summary
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14.5px;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <span style="color: var(--text-muted);">Taxable Value (Subtotal):</span>
+                    <span style="font-weight: 700;" id="sum-taxable">₹0.00</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px; font-size: 13.5px;">
+                    <span style="color: var(--text-muted);">SGST Amount:</span>
+                    <span style="font-weight: 600;" id="sum-sgst">₹0.00</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px; font-size: 13.5px;">
+                    <span style="color: var(--text-muted);">CGST Amount:</span>
+                    <span style="font-weight: 600;" id="sum-cgst">₹0.00</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px; font-size: 13.5px;">
+                    <span style="color: var(--text-muted);">IGST Amount:</span>
+                    <span style="font-weight: 600;" id="sum-igst">₹0.00</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; font-size: 13.5px;">
+                    <span style="color: var(--text-muted);">Round off:</span>
+                    <span style="font-weight: 600;" id="sum-roundoff">₹0.00</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; padding-top: 4px; font-size: 18px;">
+                    <span style="font-weight: 800; color: var(--accent-indigo);">GRAND TOTAL:</span>
+                    <span style="font-weight: 800; color: var(--accent-indigo);" id="sum-grandtotal">₹0.00</span>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px; font-weight: 700; font-size: 15px; padding: 12px;">
+                <i class="fa-solid fa-print"></i> Generate & Print Sales Invoice
+            </button>
+        </div>
+    </div>
+    
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 1. Serialize Saree Database Catalog for JS Lookup
+    const sareeCatalog = {
+        {% for s in sarees %}
+            "{{ s.id }}": {
+                "name": {{ s.name | tojson }},
+                "color": {{ s.color | tojson }},
+                "selling_price": {{ s.selling_price }},
+                "category": {{ s.category | tojson }}
+            },
+        {% endfor %}
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- 2. SETUP METADATA DEFAULTS ---
+        const invoiceDateInput = document.getElementById('invoice_date');
+        if (invoiceDateInput) {
+            invoiceDateInput.value = new Date().toISOString().substring(0, 10);
+        }
+
+        // --- 3. DYNAMIC ROW INITIALIZER ---
+        const tbody = document.getElementById('items-tbody');
+        const addRowBtn = document.getElementById('add-row-btn');
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[character]);
+        }
+        
+        function createItemRow() {
+            const tr = document.createElement('tr');
+            tr.className = 'item-row';
+            
+            // Build options list
+            let sareeOptions = '<option value="" disabled selected>-- Select Saree --</option>';
+            for (let id in sareeCatalog) {
+                sareeOptions += `<option value="${id}">${escapeHtml(sareeCatalog[id].name)} — ${escapeHtml(sareeCatalog[id].color)} (₹${sareeCatalog[id].selling_price})</option>`;
+            }
+            
+            tr.innerHTML = `
+                <td>
+                    <select name="saree_id[]" class="form-control saree-select" required style="width:100%;">
+                        ${sareeOptions}
+                    </select>
+                </td>
+                <td>
+                    <input type="text" name="hsn_code[]" class="form-control hsn-input" value="5007" placeholder="e.g. 5007">
+                </td>
+                <td>
+                    <input type="number" step="0.1" name="meters[]" class="form-control meters-input" value="5.5" placeholder="e.g. 5.5">
+                </td>
+                <td>
+                    <input type="number" name="quantity[]" class="form-control qty-input" value="1" min="1" required>
+                </td>
+                <td>
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 10px; top:50%; transform:translateY(-50%); font-size:13px; color:var(--text-muted);">₹</span>
+                        <input type="number" step="0.01" name="rate[]" class="form-control rate-input" placeholder="Price" style="padding-left: 20px;" required>
+                    </div>
+                </td>
+                <td>
+                    <span style="font-weight: 700; display: inline-block; padding-top: 8px;" class="row-amount">₹0.00</span>
+                </td>
+                <td style="text-align: center;">
+                    <button type="button" class="btn btn-rose btn-sm remove-row-btn" style="padding: 6px 10px; border-radius: 50%;">
+                        <i class="fa-solid fa-xmark" style="margin:0;"></i>
+                    </button>
+                </td>
+            `;
+            
+            tbody.appendChild(tr);
+            
+            // Wire listeners
+            const select = tr.querySelector('.saree-select');
+            const rateInput = tr.querySelector('.rate-input');
+            const qtyInput = tr.querySelector('.qty-input');
+            const metersInput = tr.querySelector('.meters-input');
+            const removeBtn = tr.querySelector('.remove-row-btn');
+            
+            select.addEventListener('change', () => {
+                const sid = select.value;
+                if (sareeCatalog[sid]) {
+                    rateInput.value = sareeCatalog[sid].selling_price;
+                    
+                    // Default length by category
+                    const cat = sareeCatalog[sid].category.toLowerCase();
+                    if (cat.includes('cotton')) {
+                        metersInput.value = 6.3; // Cotton typical length
+                    } else {
+                        metersInput.value = 5.5; // Silk standard
+                    }
+                    
+                    calculateInvoice();
+                }
+            });
+            
+            qtyInput.addEventListener('input', calculateInvoice);
+            rateInput.addEventListener('input', calculateInvoice);
+            metersInput.addEventListener('input', calculateInvoice);
+            
+            removeBtn.addEventListener('click', () => {
+                tr.remove();
+                calculateInvoice();
+            });
+            
+            calculateInvoice();
+        }
+
+        // --- 4. REAL-TIME BILL CALCULATIONS ---
+        const sumTaxable = document.getElementById('sum-taxable');
+        const sumSgst = document.getElementById('sum-sgst');
+        const sumCgst = document.getElementById('sum-cgst');
+        const sumIgst = document.getElementById('sum-igst');
+        const sumRoundoff = document.getElementById('sum-roundoff');
+        const sumGrandtotal = document.getElementById('sum-grandtotal');
+        
+        const sgstRateInput = document.getElementById('sgst_rate');
+        const cgstRateInput = document.getElementById('cgst_rate');
+        const igstRateInput = document.getElementById('igst_rate');
+        
+        function calculateInvoice() {
+            let taxableVal = 0;
+            const rows = document.querySelectorAll('.item-row');
+            
+            rows.forEach(row => {
+                const qty = parseInt(row.querySelector('.qty-input').value) || 0;
+                const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+                const amount = qty * rate;
+                taxableVal += amount;
+                
+                row.querySelector('.row-amount').textContent = '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            });
+            
+            const sgstRate = parseFloat(sgstRateInput.value) || 0;
+            const cgstRate = parseFloat(cgstRateInput.value) || 0;
+            const igstRate = parseFloat(igstRateInput.value) || 0;
+            
+            const sgstAmt = taxableVal * (sgstRate / 100);
+            const cgstAmt = taxableVal * (cgstRate / 100);
+            const igstAmt = taxableVal * (igstRate / 100);
+            
+            const rawTotal = taxableVal + sgstAmt + cgstAmt + igstAmt;
+            const grandTotal = Math.round(rawTotal);
+            const roundOff = grandTotal - rawTotal;
+            
+            // Render text calculations
+            sumTaxable.textContent = '₹' + taxableVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            sumSgst.textContent = '₹' + sgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            sumCgst.textContent = '₹' + cgstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            sumIgst.textContent = '₹' + igstAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            sumRoundoff.textContent = '₹' + roundOff.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            sumGrandtotal.textContent = '₹' + grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        addRowBtn.addEventListener('click', createItemRow);
+        
+        sgstRateInput.addEventListener('input', calculateInvoice);
+        cgstRateInput.addEventListener('input', calculateInvoice);
+        igstRateInput.addEventListener('input', calculateInvoice);
+        
+        // Auto-configure tax depending on customer state code!
+        const customerSelect = document.getElementById('customer_id');
+        const newCustomerFields = document.getElementById('new-customer-fields');
+        const newCustomerNameInput = document.getElementById('new_customer_name');
+        
+        customerSelect.addEventListener('change', () => {
+            const val = customerSelect.value;
+            
+            if (val === 'new_customer') {
+                // Show dynamic register block
+                newCustomerFields.style.display = 'block';
+                newCustomerNameInput.setAttribute('required', 'true');
+                
+                // Default intra-state standard tax
+                sgstRateInput.value = "2.5";
+                cgstRateInput.value = "2.5";
+                igstRateInput.value = "0.0";
+            } else {
+                // Hide dynamic register block
+                newCustomerFields.style.display = 'none';
+                newCustomerNameInput.removeAttribute('required');
+                
+                const selectedOpt = customerSelect.options[customerSelect.selectedIndex];
+                const stateCode = selectedOpt.getAttribute('data-state-code');
+                
+                // Banhatti State code is 29 (Karnataka)
+                if (stateCode && stateCode !== '29') {
+                    // Inter-state buyer! Swap CGST/SGST to 0 and set IGST to 5%
+                    sgstRateInput.value = "0.0";
+                    cgstRateInput.value = "0.0";
+                    igstRateInput.value = "5.0";
+                } else {
+                    // Intra-state! Default standard 2.5% CGST + 2.5% SGST
+                    sgstRateInput.value = "2.5";
+                    cgstRateInput.value = "2.5";
+                    igstRateInput.value = "0.0";
+                }
+            }
+            
+            calculateInvoice();
+        });
+
+        // Initialize with one default row
+        createItemRow();
+    });
+</script>
+{% endblock %}
